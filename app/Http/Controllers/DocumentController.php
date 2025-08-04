@@ -743,9 +743,76 @@ class DocumentController extends Controller
      */
     private function extractExcelText(string $filePath): string
     {
-        // Implémentation basique pour l'extraction Excel
-        // TODO: Utiliser PhpSpreadsheet si disponible
-        return '';
+        if (!class_exists('ZipArchive')) {
+            return '';
+        }
+
+        try {
+            $zip = new \ZipArchive();
+            if ($zip->open($filePath) !== true) {
+                return '';
+            }
+
+            $extractedContent = [];
+
+            // Lire les chaînes partagées dans xl/sharedStrings.xml
+            $sharedStrings = [];
+            $sharedStringsFile = "xl/sharedStrings.xml";
+            if ($zip->locateName($sharedStringsFile) !== false) {
+                $sharedStringsContent = $zip->getFromName($sharedStringsFile);
+                if ($sharedStringsContent) {
+                    preg_match_all('/<t[^>]*>(.*?)<\/t>/s', $sharedStringsContent, $matches);
+                    if (!empty($matches[1])) {
+                        $sharedStrings = array_map('strip_tags', $matches[1]);
+                    }
+                }
+            }
+
+            // Parcourir les feuilles de calcul
+            for ($i = 1; $i <= 20; $i++) { // Limiter à 20 feuilles max
+                $worksheetFile = "xl/worksheets/sheet{$i}.xml";
+                if ($zip->locateName($worksheetFile) !== false) {
+                    $worksheetContent = $zip->getFromName($worksheetFile);
+                    if ($worksheetContent) {
+                        // Extraire les valeurs des cellules
+                        preg_match_all('/<v[^>]*>(.*?)<\/v>/s', $worksheetContent, $valueMatches);
+                        preg_match_all('/<c[^>]*r="([^"]*)"[^>]*t="s"[^>]*><v[^>]*>(\d+)<\/v>/s', $worksheetContent, $stringMatches);
+
+                        $sheetText = [];
+
+                        // Ajouter les chaînes de caractères référencées
+                        if (!empty($stringMatches[2])) {
+                            foreach ($stringMatches[2] as $index) {
+                                if (isset($sharedStrings[$index])) {
+                                    $sheetText[] = $sharedStrings[$index];
+                                }
+                            }
+                        }
+
+                        // Ajouter les valeurs numériques directes
+                        if (!empty($valueMatches[1])) {
+                            foreach ($valueMatches[1] as $value) {
+                                if (is_numeric($value) && strlen($value) > 2) { // Éviter les petits nombres sans contexte
+                                    $sheetText[] = $value;
+                                }
+                            }
+                        }
+
+                        if (!empty($sheetText)) {
+                            $extractedContent[] = "=== FEUILLE {$i} ===\n" . implode(' | ', $sheetText);
+                        }
+                    }
+                }
+            }
+
+            $zip->close();
+
+            return implode("\n\n", $extractedContent);
+
+        } catch (\Exception $e) {
+            Log::warning("Erreur extraction Excel: " . $e->getMessage());
+            return '';
+        }
     }
 
     /**
@@ -753,9 +820,73 @@ class DocumentController extends Controller
      */
     private function extractWordText(string $filePath): string
     {
-        // Implémentation basique pour l'extraction Word
-        // TODO: Utiliser PhpWord si disponible
-        return '';
+        if (!class_exists('ZipArchive')) {
+            return '';
+        }
+
+        try {
+            $zip = new \ZipArchive();
+            if ($zip->open($filePath) !== true) {
+                return '';
+            }
+
+            $extractedContent = [];
+
+            // Pour Word DOCX, le contenu principal est dans word/document.xml
+            $documentFile = "word/document.xml";
+            if ($zip->locateName($documentFile) !== false) {
+                $documentContent = $zip->getFromName($documentFile);
+                if ($documentContent) {
+                    // Extraire le texte des balises <w:t>
+                    preg_match_all('/<w:t[^>]*>(.*?)<\/w:t>/s', $documentContent, $matches);
+                    if (!empty($matches[1])) {
+                        $textContent = implode(' ', array_map('strip_tags', $matches[1]));
+                        if (!empty(trim($textContent))) {
+                            $extractedContent[] = trim($textContent);
+                        }
+                    }
+                }
+            }
+
+            // Aussi extraire des en-têtes et pieds de page si ils existent
+            for ($i = 1; $i <= 10; $i++) {
+                $headerFile = "word/header{$i}.xml";
+                if ($zip->locateName($headerFile) !== false) {
+                    $headerContent = $zip->getFromName($headerFile);
+                    if ($headerContent) {
+                        preg_match_all('/<w:t[^>]*>(.*?)<\/w:t>/s', $headerContent, $matches);
+                        if (!empty($matches[1])) {
+                            $headerText = implode(' ', array_map('strip_tags', $matches[1]));
+                            if (!empty(trim($headerText))) {
+                                $extractedContent[] = "=== EN-TÊTE ===\n" . trim($headerText);
+                            }
+                        }
+                    }
+                }
+
+                $footerFile = "word/footer{$i}.xml";
+                if ($zip->locateName($footerFile) !== false) {
+                    $footerContent = $zip->getFromName($footerFile);
+                    if ($footerContent) {
+                        preg_match_all('/<w:t[^>]*>(.*?)<\/w:t>/s', $footerContent, $matches);
+                        if (!empty($matches[1])) {
+                            $footerText = implode(' ', array_map('strip_tags', $matches[1]));
+                            if (!empty(trim($footerText))) {
+                                $extractedContent[] = "=== PIED DE PAGE ===\n" . trim($footerText);
+                            }
+                        }
+                    }
+                }
+            }
+
+            $zip->close();
+
+            return implode("\n\n", $extractedContent);
+
+        } catch (\Exception $e) {
+            Log::warning("Erreur extraction Word: " . $e->getMessage());
+            return '';
+        }
     }
 
     /**
@@ -1007,8 +1138,8 @@ class DocumentController extends Controller
             $command = "pdftotext \"$pdfPath\" -";
             $output = shell_exec($command);
 
-            if ($output && strlen(trim($output)) > 0) {
-                return "🎯 EXTRACTION RÉELLE RÉUSSIE ! (PDF Direct)\n\n" . trim($output);
+            if ($output && strlen(trim($output)) > 0 && $this->isValidUtf8($output)) {
+                return "✅ EXTRACTION RÉELLE RÉUSSIE ! (PDF Direct)\n\n" . trim($output);
             }
 
             // Méthode 2: Fallback avec smalot/pdfparser si disponible
@@ -1018,32 +1149,103 @@ class DocumentController extends Controller
                     $pdf = $parser->parseFile($pdfPath);
                     $text = $pdf->getText();
 
-                    if ($text && strlen(trim($text)) > 0) {
-                        return "🎯 EXTRACTION RÉELLE RÉUSSIE ! (PDF Parser)\n\n" . trim($text);
+                    if ($text && strlen(trim($text)) > 0 && $this->isValidUtf8($text)) {
+                        return "✅ EXTRACTION RÉELLE RÉUSSIE ! (PDF Parser)\n\n" . trim($text);
                     }
                 }
             } catch (Exception $e) {
                 Log::warning("Échec PDF Parser: " . $e->getMessage());
             }
 
-            // Méthode 3: Fallback lecture basique
+            // Méthode 3: Fallback lecture intelligente
             $content = file_get_contents($pdfPath);
             if ($content) {
-                // Extraction très basique de texte visible dans le PDF
-                if (preg_match_all('/\((.*?)\)/s', $content, $matches)) {
-                    $text = implode(' ', $matches[1]);
-                    if (strlen(trim($text)) > 10) {
-                        return "🎯 EXTRACTION RÉELLE RÉUSSIE ! (PDF Basique)\n\n" . trim($text);
-                    }
+                // Essayer d'extraire du texte lisible
+                $extractedText = $this->extractReadableTextFromPdf($content);
+                if (!empty($extractedText)) {
+                    return "📄 TEXTE EXTRAIT (PDF Analyse)\n\n" . $extractedText;
                 }
             }
 
-            return null;
+            // Méthode 4: Si échec, indiquer qu'on a besoin d'OCR
+            return "⚠️ EXTRACTION PDF NÉCESSITE OCR\n\n" .
+                   "Le PDF contient probablement des images ou du texte non-standard.\n" .
+                   "Conversion en image puis OCR recommandée pour extraction complète.";
 
         } catch (Exception $e) {
             Log::error("Erreur extraction texte PDF: " . $e->getMessage());
             return null;
         }
+    }
+
+    /**
+     * Vérifier si une chaîne est en UTF-8 valide
+     */
+    private function isValidUtf8(string $text): bool
+    {
+        return mb_check_encoding($text, 'UTF-8') && !preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $text);
+    }
+
+    /**
+     * Extraire du texte lisible d'un contenu PDF brut
+     */
+    private function extractReadableTextFromPdf(string $content): string
+    {
+        $extractedParts = [];
+
+        // Chercher les flux de texte dans le PDF
+        if (preg_match_all('/BT\s+(.*?)\s+ET/s', $content, $matches)) {
+            foreach ($matches[1] as $textBlock) {
+                // Extraire les chaînes entre parenthèses
+                if (preg_match_all('/\((.*?)\)/', $textBlock, $stringMatches)) {
+                    foreach ($stringMatches[1] as $string) {
+                        // Nettoyer et valider le texte
+                        $cleanText = $this->cleanExtractedText($string);
+                        if (!empty($cleanText) && strlen($cleanText) > 2) {
+                            $extractedParts[] = $cleanText;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Aussi chercher les commandes Tj
+        if (preg_match_all('/\((.*?)\)\s*Tj/s', $content, $tjMatches)) {
+            foreach ($tjMatches[1] as $string) {
+                $cleanText = $this->cleanExtractedText($string);
+                if (!empty($cleanText) && strlen($cleanText) > 2) {
+                    $extractedParts[] = $cleanText;
+                }
+            }
+        }
+
+        if (!empty($extractedParts)) {
+            return implode(' ', array_unique($extractedParts));
+        }
+
+        return '';
+    }
+
+    /**
+     * Nettoyer le texte extrait du PDF
+     */
+    private function cleanExtractedText(string $text): string
+    {
+        // Supprimer les caractères de contrôle et non-printables
+        $text = preg_replace('/[\x00-\x1F\x7F-\x9F]/', '', $text);
+
+        // Supprimer les séquences d'échappement
+        $text = preg_replace('/\\\\[0-9]+/', '', $text);
+
+        // Nettoyer les espaces
+        $text = preg_replace('/\s+/', ' ', $text);
+
+        // Vérifier que c'est du texte lisible (lettres, chiffres, ponctuation basique)
+        if (preg_match('/^[\w\s\.,;:!?\-\'"()\/]+$/u', $text)) {
+            return trim($text);
+        }
+
+        return '';
     }
 
     /**
@@ -1307,5 +1509,37 @@ class DocumentController extends Controller
         }
 
         return $text;
+    }
+
+    /**
+     * Retraiter un document avec les nouvelles méthodes d'extraction
+     */
+    public function reprocessDocument(Document $document)
+    {
+        // Vérifier que l'utilisateur possède le document
+        if ($document->user_id !== Auth::id()) {
+            abort(403, 'Accès non autorisé.');
+        }
+
+        try {
+            Log::info("Retraitement du document {$document->id} avec les nouvelles méthodes");
+
+            // Relancer le processus OCR avec les améliorations
+            $this->processOCR($document);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Document retraité avec succès',
+                'ocr_text' => $document->fresh()->ocr_text
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Erreur lors du retraitement du document {$document->id}: " . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Erreur lors du retraitement: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

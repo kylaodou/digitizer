@@ -70,14 +70,16 @@
                     <!-- Document Thumbnail -->
                     <div class="aspect-w-16 aspect-h-9 mb-4 relative">
                         @php
-                            // Utiliser mime_type pour déterminer le type de fichier
+                            // Utiliser mime_type et file_path pour déterminer le type de fichier
                             $mimeType = $document->mime_type ?? '';
-                            $isImage = str_contains($mimeType, 'image/');
-                            $isPdf = str_contains($mimeType, 'pdf');
+                            $fileExtension = $document->file_path ? strtolower(pathinfo($document->file_path, PATHINFO_EXTENSION)) : '';
+                            $isImage = str_contains($mimeType, 'image/') || in_array($fileExtension, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff', 'svg']);
+                            $isPdf = str_contains($mimeType, 'pdf') || $fileExtension === 'pdf';
                             $isOffice = str_contains($mimeType, 'word') || str_contains($mimeType, 'excel') || str_contains($mimeType, 'powerpoint') ||
                                        str_contains($mimeType, 'document') || str_contains($mimeType, 'spreadsheet') || str_contains($mimeType, 'presentation') ||
-                                       in_array($fileExtension, ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'pptm']);
-                            $isText = str_contains($mimeType, 'text/');
+                                       str_contains($mimeType, 'officedocument') || str_contains($mimeType, 'opendocument') ||
+                                       in_array($fileExtension, ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'pptm', 'odt', 'ods', 'odp']);
+                            $isText = str_contains($mimeType, 'text/') || in_array($fileExtension, ['txt', 'csv', 'json', 'xml']);
 
                             // Déterminer l'extension du fichier pour les fallbacks
                             $fileExtension = '';

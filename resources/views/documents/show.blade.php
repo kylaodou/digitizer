@@ -134,68 +134,305 @@
 
                             <!-- APERÇU UNIVERSEL POUR TOUS LES TYPES -->
                             @if($hasRealPreview)
-                                <!-- Véritable prévisualisation avec image -->
-                                <div class="max-w-full max-h-96">
-                                    <img src="{{ $previewUrl }}" alt="Aperçu du document" class="max-w-full max-h-96 rounded-lg shadow-md border">
-                                    <div class="mt-4 text-sm text-gray-600">
-                                        @if($isPdf)
-                                            📄 Aperçu de la première page (PDF)
-                                        @elseif($isOffice)
-                                            📊 Aperçu généré (Document Office)
-                                        @elseif($isImage)
-                                            🖼️ Image originale
-                                        @elseif($isText)
-                                            📝 Aperçu du contenu textuel
-                                        @else
-                                            📎 Aperçu du fichier {{ strtoupper($extension) }}
-                                        @endif
+                                <!-- Véritable document ouvert (PAS d'image de prévisualisation) -->
+                                @if($isPdf)
+                                    <!-- Document PDF réel ouvert -->
+                                    <div class="w-full">
+                                        <div class="bg-white rounded-lg shadow-lg p-3 mb-4">
+                                            <!-- Header avec bouton "Voir tout" -->
+                                            <div class="flex items-center justify-between mb-3 pb-3 border-b">
+                                                <div class="flex items-center space-x-3">
+                                                    <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                                                        <svg class="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path d="M4 18h12V6l-4-4H4a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                                        </svg>
+                                                    </div>
+                                                    <div>
+                                                        <h4 class="font-medium text-gray-900">{{ $document->name ?? 'Document PDF' }}</h4>
+                                                        <p class="text-sm text-gray-500">Document réel ouvert</p>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onclick="openDocumentModal('{{ asset('storage/' . $document->file_path) }}', 'pdf', {{ json_encode([
+                                                        'filename' => $document->name ?? 'document.pdf',
+                                                        'file_size' => isset($document->file_size) ? number_format($document->file_size / 1024, 2) . ' KB' : 'N/A',
+                                                        'mime_type' => $document->mime_type ?? 'application/pdf',
+                                                        'created_at' => isset($document->created_at) ? $document->created_at->format('d/m/Y à H:i') : 'N/A',
+                                                        'status' => $document->status ?? 'uploaded',
+                                                        'ocr_text' => $document->ocr_text ?? null,
+                                                        'ai_summary' => $document->ai_summary ?? null
+                                                    ]) }})"
+                                                    class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
+                                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path>
+                                                    </svg>
+                                                    Voir tout
+                                                </button>
+                                            </div>
+
+                                            <!-- Document PDF réel intégré -->
+                                            <div class="relative bg-gray-100 rounded-lg" style="height: 500px;">
+                                                <iframe
+                                                    src="{{ asset('storage/' . $document->file_path) }}#toolbar=1&navpanes=1&scrollbar=1&view=FitH"
+                                                    class="w-full h-full rounded-lg border-0"
+                                                    style="border: none; background: white;"
+                                                    title="{{ $document->name ?? 'Document PDF' }}"
+                                                    loading="lazy">
+                                                </iframe>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
+                                @elseif($isOffice)
+                                    <!-- Document Office réel ouvert -->
+                                    <div class="w-full">
+                                        <div class="bg-white rounded-lg shadow-lg p-4">
+                                            <!-- Header avec bouton "Voir tout" -->
+                                            <div class="flex items-center justify-between mb-4 pb-3 border-b">
+                                                <div class="flex items-center space-x-3">
+                                                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                                        <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4V5h12v10z"/>
+                                                        </svg>
+                                                    </div>
+                                                    <div>
+                                                        <h4 class="font-medium text-gray-900">{{ $document->name ?? 'Document Office' }}</h4>
+                                                        <p class="text-sm text-gray-500">Contenu du document extrait</p>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onclick="openDocumentModal('{{ asset('storage/' . $document->file_path) }}', 'office', {{ json_encode([
+                                                        'filename' => $document->name ?? 'document.' . $extension,
+                                                        'file_size' => isset($document->file_size) ? number_format($document->file_size / 1024, 2) . ' KB' : 'N/A',
+                                                        'mime_type' => $document->mime_type ?? 'application/octet-stream',
+                                                        'created_at' => isset($document->created_at) ? $document->created_at->format('d/m/Y à H:i') : 'N/A',
+                                                        'status' => $document->status ?? 'uploaded',
+                                                        'extension' => $extension,
+                                                        'ocr_text' => $document->ocr_text ?? null,
+                                                        'ai_summary' => $document->ai_summary ?? null
+                                                    ]) }})"
+                                                    class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
+                                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path>
+                                                    </svg>
+                                                    Voir tout
+                                                </button>
+                                            </div>
+
+                                            <!-- Contenu réel du document Office -->
+                                            <div class="bg-gray-50 rounded-lg p-4" style="min-height: 400px; max-height: 500px; overflow-y: auto;">
+                                                @if(isset($document->ocr_text) && $document->ocr_text && !str_contains($document->ocr_text, 'ANALYSE BASIQUE'))
+                                                    <div class="bg-white rounded border p-4">
+                                                        <h5 class="font-medium text-gray-900 mb-3">Contenu du document :</h5>
+                                                        <div class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                                                            {{ $document->ocr_text }}
+                                                        </div>
+                                                    </div>
+                                                @else
+                                                    <div class="text-center py-8">
+                                                        <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                            <svg class="w-8 h-8 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                                                <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4V5h12v10z"/>
+                                                            </svg>
+                                                        </div>
+                                                        <h5 class="font-medium text-gray-900 mb-2">Document {{ strtoupper($extension) }}</h5>
+                                                        <p class="text-gray-600 text-sm mb-4">Contenu en cours d'extraction...</p>
+                                                        <a href="{{ asset('storage/' . $document->file_path) }}"
+                                                           target="_blank"
+                                                           class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                                            Ouvrir le document original
+                                                        </a>
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+                                @else
+                                    <!-- Image réelle ouverte -->
+                                    <div class="w-full">
+                                        <div class="bg-white rounded-lg shadow-lg p-3">
+                                            <!-- Header avec bouton "Voir tout" -->
+                                            <div class="flex items-center justify-between mb-3 pb-3 border-b">
+                                                <div class="flex items-center space-x-3">
+                                                    <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                                        <svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path d="M4 3a2 2 0 00-2 2v1h16V5a2 2 0 00-2-2H4zM4 9h16v6a2 2 0 01-2 2H6a2 2 0 01-2-2V9z"/>
+                                                        </svg>
+                                                    </div>
+                                                    <div>
+                                                        <h4 class="font-medium text-gray-900">{{ $document->name ?? 'Image' }}</h4>
+                                                        <p class="text-sm text-gray-500">Image réelle ouverte</p>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onclick="openDocumentModal('{{ asset('storage/' . $document->file_path) }}', 'image', {{ json_encode([
+                                                        'filename' => $document->name ?? 'image.' . pathinfo($document->file_path, PATHINFO_EXTENSION),
+                                                        'file_size' => isset($document->file_size) ? number_format($document->file_size / 1024, 2) . ' KB' : 'N/A',
+                                                        'mime_type' => $document->mime_type ?? 'image',
+                                                        'created_at' => isset($document->created_at) ? $document->created_at->format('d/m/Y à H:i') : 'N/A',
+                                                        'status' => $document->status ?? 'uploaded',
+                                                        'extension' => pathinfo($document->file_path, PATHINFO_EXTENSION),
+                                                        'ocr_text' => $document->ocr_text ?? null,
+                                                        'ai_summary' => $document->ai_summary ?? null
+                                                    ]) }})"
+                                                    class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
+                                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path>
+                                                    </svg>
+                                                    Voir tout
+                                                </button>
+                                            </div>
+
+                                            <!-- Image réelle intégrée -->
+                                            <div class="relative bg-gray-100 rounded-lg p-4" style="max-height: 500px; overflow: auto;">
+                                                <img src="{{ asset('storage/' . $document->file_path) }}"
+                                                     alt="{{ $document->name ?? 'Document' }}"
+                                                     class="max-w-full h-auto rounded-lg shadow-md mx-auto"
+                                                     style="max-height: 450px; object-fit: contain;">
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endif
                             @elseif($isImage)
-                                <!-- Image directe si pas de thumbnail -->
-                                <img src="{{ asset('storage/' . $document->file_path) }}"
-                                     alt="Document"
-                                     class="max-w-full max-h-96 rounded-lg shadow-md">
-                            @elseif($isPdf)
-                                <!-- Aperçu PDF avec iframe -->
-                                <div class="w-full max-w-2xl">
-                                    <div class="bg-white rounded-lg shadow-lg p-4 mb-4">
-                                        <iframe
-                                            src="{{ asset('storage/' . $document->file_path) }}#toolbar=0&navpanes=0&scrollbar=0"
-                                            class="w-full h-96 rounded border"
-                                            style="border: none;"
-                                            title="Aperçu PDF">
-                                        </iframe>
+                                <!-- Image directe avec bouton d'agrandissement -->
+                                <div class="max-w-full">
+                                    <div class="relative group">
+                                        <img src="{{ asset('storage/' . $document->file_path) }}"
+                                             alt="Document"
+                                             class="max-w-full max-h-96 rounded-lg shadow-md mx-auto">
+
+                                        <!-- Overlay avec boutons -->
+                                        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                            <button
+                                                onclick="openDocumentModal('{{ asset('storage/' . $document->file_path) }}', 'image', {{ json_encode([
+                                                    'filename' => $document->name ?? 'image.' . pathinfo($document->file_path, PATHINFO_EXTENSION),
+                                                    'file_size' => isset($document->file_size) ? number_format($document->file_size / 1024, 2) . ' KB' : 'N/A',
+                                                    'mime_type' => $document->mime_type ?? 'image',
+                                                    'created_at' => isset($document->created_at) ? $document->created_at->format('d/m/Y à H:i') : 'N/A',
+                                                    'status' => $document->status ?? 'uploaded',
+                                                    'extension' => pathinfo($document->file_path, PATHINFO_EXTENSION),
+                                                    'ocr_text' => $document->ocr_text ?? null
+                                                ]) }})"
+                                                class="bg-white bg-opacity-90 hover:bg-opacity-100 text-gray-800 px-4 py-2 rounded-lg font-medium transition-all shadow-lg">
+                                                <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path>
+                                                </svg>
+                                                Agrandir l'image
+                                            </button>
+                                        </div>
                                     </div>
 
-                                    <div class="flex justify-center space-x-3">
+                                    <div class="mt-4 text-center space-x-3">
                                         <button
-                                            onclick="openPdfModal('{{ asset('storage/' . $document->file_path) }}', {{ json_encode([
-                                                'filename' => $document->name ?? 'document.pdf',
+                                            onclick="openDocumentModal('{{ asset('storage/' . $document->file_path) }}', 'image', {{ json_encode([
+                                                'filename' => $document->name ?? 'image.' . pathinfo($document->file_path, PATHINFO_EXTENSION),
                                                 'file_size' => isset($document->file_size) ? number_format($document->file_size / 1024, 2) . ' KB' : 'N/A',
-                                                'mime_type' => $document->mime_type ?? 'application/pdf',
+                                                'mime_type' => $document->mime_type ?? 'image',
                                                 'created_at' => isset($document->created_at) ? $document->created_at->format('d/m/Y à H:i') : 'N/A',
                                                 'status' => $document->status ?? 'uploaded',
-                                                'ocr_text' => $document->ocr_text ?? null,
-                                                'ai_summary' => $document->ai_summary ?? null,
-                                                'ai_classification' => $document->ai_classification ?? null
+                                                'extension' => pathinfo($document->file_path, PATHINFO_EXTENSION),
+                                                'ocr_text' => $document->ocr_text ?? null
                                             ]) }})"
                                             class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
                                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path>
                                             </svg>
-                                            Aperçu complet
+                                            Voir en grand
                                         </button>
 
                                         <a href="{{ asset('storage/' . $document->file_path) }}"
-                                           download="{{ $document->name ?? 'document.pdf' }}"
+                                           download="{{ $document->name ?? 'image.' . pathinfo($document->file_path, PATHINFO_EXTENSION) }}"
                                            class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors">
                                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                             </svg>
                                             Télécharger
                                         </a>
+                                    </div>
+                                </div>
+                            @elseif($isPdf)
+                                <!-- Aperçu PDF avec iframe complet et scrollable -->
+                                <div class="w-full">
+                                    <div class="bg-white rounded-lg shadow-lg p-3 mb-4">
+                                        <!-- Header avec info et boutons -->
+                                        <div class="flex items-center justify-between mb-3 pb-3 border-b">
+                                            <div class="flex items-center space-x-3">
+                                                <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                                                    <svg class="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path d="M4 18h12V6l-4-4H4a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                                    </svg>
+                                                </div>
+                                                <div>
+                                                    <h4 class="font-medium text-gray-900">{{ $document->name ?? 'Document PDF' }}</h4>
+                                                    <p class="text-sm text-gray-500">
+                                                        {{ isset($document->file_size) ? number_format($document->file_size / 1024, 2) . ' KB' : 'Taille inconnue' }}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div class="flex space-x-2">
+                                                <button
+                                                    onclick="openDocumentModal('{{ asset('storage/' . $document->file_path) }}', 'pdf', {{ json_encode([
+                                                        'filename' => $document->name ?? 'document.pdf',
+                                                        'file_size' => isset($document->file_size) ? number_format($document->file_size / 1024, 2) . ' KB' : 'N/A',
+                                                        'mime_type' => $document->mime_type ?? 'application/pdf',
+                                                        'created_at' => isset($document->created_at) ? $document->created_at->format('d/m/Y à H:i') : 'N/A',
+                                                        'status' => $document->status ?? 'uploaded'
+                                                    ]) }})"
+                                                    class="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
+                                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path>
+                                                    </svg>
+                                                    Agrandir
+                                                </button>
+                                                <a href="{{ asset('storage/' . $document->file_path) }}"
+                                                   download="{{ $document->name ?? 'document.pdf' }}"
+                                                   class="inline-flex items-center px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors">
+                                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M7 13h10M7 9h10"></path>
+                                                    </svg>
+                                                    Télécharger
+                                                </a>
+                                            </div>
+                                        </div>
+
+                                        <!-- Viewer PDF complet avec scroll -->
+                                        <div class="relative bg-gray-100 rounded-lg" style="height: 600px;">
+                                            <iframe
+                                                id="pdf-viewer-{{ $document->id }}"
+                                                src="{{ asset('storage/' . $document->file_path) }}#toolbar=1&navpanes=1&scrollbar=1&view=FitH"
+                                                class="w-full h-full rounded-lg border-0"
+                                                style="border: none; background: white;"
+                                                title="Visualiseur PDF - {{ $document->name ?? 'Document' }}"
+                                                loading="lazy">
+                                                <div class="flex items-center justify-center h-full">
+                                                    <div class="text-center">
+                                                        <p class="text-gray-600 mb-4">Impossible d'afficher le PDF dans votre navigateur</p>
+                                                        <a href="{{ asset('storage/' . $document->file_path) }}"
+                                                           target="_blank"
+                                                           class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                                            Ouvrir dans un nouvel onglet
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </iframe>
+                                        </div>
+
+                                        <!-- Contrôles additionnels -->
+                                        <div class="flex items-center justify-between mt-3 pt-3 border-t">
+                                            <div class="flex items-center space-x-2 text-sm text-gray-600">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                </svg>
+                                                <span>Utilisez la molette pour zoomer</span>
+                                            </div>
+                                            <button
+                                                onclick="refreshPdfViewer({{ $document->id }})"
+                                                class="inline-flex items-center px-2 py-1 text-sm text-gray-600 hover:text-gray-800">
+                                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                                </svg>
+                                                Actualiser
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             @elseif($isOffice)
@@ -322,10 +559,27 @@
                                         @endif
                                     </div>
 
-                                    <div class="mt-4 text-center">
+                                    <div class="mt-4 text-center space-x-3">
+                                        <button
+                                            onclick="openDocumentModal('{{ asset('storage/' . $document->file_path) }}', 'office', {{ json_encode([
+                                                'filename' => $document->name ?? 'document.' . $extension,
+                                                'file_size' => isset($document->file_size) ? number_format($document->file_size / 1024, 2) . ' KB' : 'N/A',
+                                                'mime_type' => $document->mime_type ?? 'application/octet-stream',
+                                                'created_at' => isset($document->created_at) ? $document->created_at->format('d/m/Y à H:i') : 'N/A',
+                                                'status' => $document->status ?? 'uploaded',
+                                                'extension' => $extension,
+                                                'ocr_text' => $document->ocr_text ?? null
+                                            ]) }})"
+                                            class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
+                                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path>
+                                            </svg>
+                                            Voir le contenu
+                                        </button>
+
                                         <a href="{{ asset('storage/' . $document->file_path) }}"
                                            download="{{ $document->name ?? 'document.' . $extension }}"
-                                           class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
+                                           class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors">
                                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                             </svg>
@@ -665,6 +919,14 @@
                         </button>
                         @endif
 
+                        <button onclick="reprocessDocument({{ $document->id }})"
+                                class="w-full flex items-center justify-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            Retraiter avec nouvelles méthodes
+                        </button>
+
                         <form action="{{ route('documents.destroy', $document) }}" method="POST" class="w-full"
                               onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce document ?')">
                             @csrf
@@ -855,8 +1117,318 @@
         }
     }
 
+    // Retraiter un document avec les nouvelles méthodes
+    async function reprocessDocument(documentId) {
+        if (!confirm('Voulez-vous retraiter ce document avec les nouvelles méthodes d\'extraction améliorées ?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/documents/${documentId}/reprocess`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                }
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                alert('Document retraité avec succès ! La page va se recharger pour afficher les nouveaux résultats.');
+                window.location.reload();
+            } else {
+                alert('Erreur lors du retraitement: ' + (result.error || 'Erreur inconnue'));
+            }
+
+        } catch (error) {
+            console.error('Erreur lors du retraitement:', error);
+            alert('Erreur de connexion lors du retraitement du document.');
+        }
+    }
+
     // Note: Auto-refresh désactivé - la page ne se recharge plus automatiquement
     // Cela améliore l'expérience utilisateur et évite les interruptions
+
+    // ========== NOUVELLES FONCTIONS POUR MODAL ET APERÇU AMÉLIORÉ ==========
+
+    // Fonction pour actualiser le viewer PDF
+    function refreshPdfViewer(documentId) {
+        const iframe = document.getElementById(`pdf-viewer-${documentId}`);
+        if (iframe) {
+            iframe.src = iframe.src;
+        }
+    }
+
+    // Fonction pour ouvrir le modal de document
+    function openDocumentModal(fileUrl, type, metadata) {
+        // Créer le modal s'il n'existe pas
+        let modal = document.getElementById('document-modal');
+        if (!modal) {
+            modal = createDocumentModal();
+            document.body.appendChild(modal);
+        }
+
+        // Mettre à jour le contenu du modal selon le type
+        const modalContent = document.getElementById('modal-document-content');
+        const modalTitle = document.getElementById('modal-document-title');
+        const modalMetadata = document.getElementById('modal-document-metadata');
+
+        // Titre du modal
+        modalTitle.textContent = metadata.filename || 'Document';
+
+        // Métadonnées
+        modalMetadata.innerHTML = `
+            <div class="grid grid-cols-2 gap-4 text-sm">
+                <div><span class="font-medium text-gray-600">Taille :</span> ${metadata.file_size}</div>
+                <div><span class="font-medium text-gray-600">Type :</span> ${metadata.mime_type}</div>
+                <div><span class="font-medium text-gray-600">Ajouté :</span> ${metadata.created_at}</div>
+                <div><span class="font-medium text-gray-600">Statut :</span> ${metadata.status}</div>
+            </div>
+        `;
+
+        // Contenu selon le type
+        if (type === 'pdf') {
+            modalContent.innerHTML = `
+                <div class="relative w-full h-full bg-gray-100 rounded-lg">
+                    <iframe
+                        src="${fileUrl}#toolbar=1&navpanes=1&scrollbar=1&view=FitH"
+                        class="w-full h-full rounded-lg border-0"
+                        style="min-height: 80vh; border: none; background: white;"
+                        title="Document PDF">
+                        <div class="flex items-center justify-center h-full">
+                            <div class="text-center">
+                                <p class="text-gray-600 mb-4">Impossible d'afficher le PDF</p>
+                                <a href="${fileUrl}" target="_blank" class="bg-blue-600 text-white px-4 py-2 rounded-lg">
+                                    Ouvrir dans un nouvel onglet
+                                </a>
+                            </div>
+                        </div>
+                    </iframe>
+                </div>
+
+                <!-- Informations clés du document -->
+                ${metadata.ocr_text || metadata.ai_summary ? `
+                    <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        ${metadata.ocr_text && !metadata.ocr_text.includes('ANALYSE BASIQUE') ? `
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <h4 class="font-medium text-gray-900 mb-3">📄 Texte extrait (OCR)</h4>
+                                <div class="max-h-48 overflow-y-auto text-sm text-gray-700 leading-relaxed whitespace-pre-wrap border rounded p-3 bg-white">
+                                    ${metadata.ocr_text}
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        ${metadata.ai_summary ? `
+                            <div class="bg-blue-50 rounded-lg p-4">
+                                <h4 class="font-medium text-blue-900 mb-3">🤖 Résumé IA</h4>
+                                <div class="text-sm text-blue-800 leading-relaxed whitespace-pre-wrap">
+                                    ${metadata.ai_summary}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                ` : ''}
+            `;
+        } else if (type === 'image') {
+            modalContent.innerHTML = `
+                <div class="text-center">
+                    <img src="${fileUrl}"
+                         alt="${metadata.filename}"
+                         class="max-w-full max-h-screen mx-auto rounded-lg shadow-lg"
+                         style="max-height: 70vh; object-fit: contain;">
+                </div>
+
+                <!-- Informations clés de l'image -->
+                ${metadata.ocr_text || metadata.ai_summary ? `
+                    <div class="mt-6 grid grid-cols-1 gap-4">
+                        ${metadata.ocr_text && !metadata.ocr_text.includes('ANALYSE BASIQUE') ? `
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <h4 class="font-medium text-gray-900 mb-3">📝 Texte détecté dans l'image</h4>
+                                <div class="max-h-32 overflow-y-auto text-sm text-gray-700 leading-relaxed whitespace-pre-wrap border rounded p-3 bg-white">
+                                    ${metadata.ocr_text}
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        ${metadata.ai_summary ? `
+                            <div class="bg-blue-50 rounded-lg p-4">
+                                <h4 class="font-medium text-blue-900 mb-3">🤖 Analyse IA de l'image</h4>
+                                <div class="text-sm text-blue-800 leading-relaxed whitespace-pre-wrap">
+                                    ${metadata.ai_summary}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                ` : ''}
+            `;
+        } else if (type === 'office') {
+            let contentDisplay = '';
+            if (metadata.ocr_text && !metadata.ocr_text.includes('ANALYSE BASIQUE')) {
+                contentDisplay = `
+                    <div class="mt-6 bg-gray-50 rounded-lg p-4">
+                        <h4 class="font-medium text-gray-900 mb-3">📄 Contenu extrait du document</h4>
+                        <div class="max-h-64 overflow-y-auto text-sm text-gray-700 leading-relaxed whitespace-pre-wrap border rounded p-3 bg-white">
+                            ${metadata.ocr_text}
+                        </div>
+                    </div>
+                `;
+            }
+
+            modalContent.innerHTML = `
+                <div class="text-center">
+                    <div class="w-32 h-32 mx-auto mb-6 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl flex items-center justify-center">
+                        <svg class="w-16 h-16 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4V5h12v10z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-2">${metadata.filename}</h3>
+                    <p class="text-gray-600 mb-6">Document ${metadata.extension.toUpperCase()}</p>
+
+                    <div class="flex justify-center space-x-3">
+                        <a href="${fileUrl}"
+                           download="${metadata.filename}"
+                           class="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            Télécharger
+                        </a>
+                        <a href="${fileUrl}"
+                           target="_blank"
+                           class="inline-flex items-center px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition-colors">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                            </svg>
+                            Ouvrir
+                        </a>
+                    </div>
+
+                    ${contentDisplay}
+
+                    ${metadata.ai_summary ? `
+                        <div class="mt-4 bg-blue-50 rounded-lg p-4">
+                            <h4 class="font-medium text-blue-900 mb-3">🤖 Résumé IA du document</h4>
+                            <div class="text-sm text-blue-800 leading-relaxed whitespace-pre-wrap">
+                                ${metadata.ai_summary}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // Afficher le modal
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+    }
+
+    // Fonction pour créer le modal
+    function createDocumentModal() {
+        const modal = document.createElement('div');
+        modal.id = 'document-modal';
+        modal.className = 'fixed inset-0 bg-black bg-opacity-75 hidden items-center justify-center z-50 p-4';
+
+        modal.innerHTML = `
+            <div class="bg-white rounded-2xl shadow-2xl max-w-7xl w-full max-h-screen overflow-hidden">
+                <!-- Header du modal -->
+                <div class="flex items-center justify-between p-6 border-b border-gray-200">
+                    <div>
+                        <h2 id="modal-document-title" class="text-xl font-semibold text-gray-900">Document</h2>
+                        <div id="modal-document-metadata" class="mt-2"></div>
+                    </div>
+                    <button onclick="closeDocumentModal()"
+                            class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                        <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Contenu du modal -->
+                <div id="modal-document-content" class="p-6 overflow-auto" style="max-height: calc(100vh - 200px);">
+                    <!-- Le contenu sera injecté ici -->
+                </div>
+
+                <!-- Footer du modal -->
+                <div class="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50">
+                    <button onclick="closeDocumentModal()"
+                            class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white font-medium rounded-lg transition-colors">
+                        Fermer
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Fermer le modal en cliquant sur l'arrière-plan
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeDocumentModal();
+            }
+        });
+
+        return modal;
+    }
+
+    // Fonction pour fermer le modal
+    function closeDocumentModal() {
+        const modal = document.getElementById('document-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            document.body.style.overflow = 'auto';
+        }
+    }
+
+    // Fermer le modal avec la touche Escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeDocumentModal();
+        }
+    });
+
+    // Fonction pour afficher les notifications
+    function showNotification(message, type = 'info') {
+        // Créer l'élément de notification
+        const notification = document.createElement('div');
+        notification.className = `fixed top-4 right-4 max-w-sm w-full shadow-lg rounded-lg p-4 z-50 transition-all duration-300 transform translate-x-full ${
+            type === 'success' ? 'bg-green-500 text-white' :
+            type === 'error' ? 'bg-red-500 text-white' :
+            'bg-blue-500 text-white'
+        }`;
+
+        notification.innerHTML = `
+            <div class="flex items-center">
+                <div class="flex-1">
+                    <p class="text-sm font-medium">${message}</p>
+                </div>
+                <button onclick="this.parentElement.parentElement.remove()" class="ml-3 p-1 hover:bg-black hover:bg-opacity-20 rounded">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        `;
+
+        document.body.appendChild(notification);
+
+        // Animer l'entrée
+        setTimeout(() => {
+            notification.classList.remove('translate-x-full');
+        }, 100);
+
+        // Supprimer automatiquement après 5 secondes
+        setTimeout(() => {
+            notification.classList.add('translate-x-full');
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }, 5000);
+    }
 </script>
 @endpush
 

@@ -55,6 +55,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
     Route::get('/documents/{document}/ocr', [DocumentController::class, 'getOcrText'])->name('documents.ocr');
     Route::post('/documents/{document}/analyze', [DocumentController::class, 'analyzeWithAI'])->name('documents.analyze');
+    Route::post('/documents/{document}/reprocess', [DocumentController::class, 'reprocessDocument'])->name('documents.reprocess');
 
     // Invoices
     Route::resource('invoices', InvoiceController::class)->only(['index', 'show']);
