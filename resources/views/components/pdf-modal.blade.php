@@ -1,16 +1,16 @@
-<!-- Modal de prévisualisation PDF -->
-<div id="pdfModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 transition-opacity duration-300" onclick="closePdfModal(event)">
+<!-- Modal universel de prévisualisation de documents -->
+<div id="universalModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 transition-opacity duration-300" onclick="closeUniversalModal(event)">
     <div class="flex items-center justify-center min-h-screen p-4">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden transform transition-all duration-300 scale-95" onclick="event.stopPropagation()">
             <!-- En-tête du modal -->
             <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 flex items-center justify-between">
                 <h3 class="text-white text-lg font-semibold flex items-center">
-                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg id="modalHeaderIcon" class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                     </svg>
-                    <span id="pdfModalTitle">Prévisualisation du document</span>
+                    <span id="universalModalTitle">Prévisualisation du document</span>
                 </h3>
-                <button onclick="closePdfModal()" class="text-white hover:text-gray-200 transition-colors">
+                <button onclick="closeUniversalModal()" class="text-white hover:text-gray-200 transition-colors">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
@@ -20,34 +20,29 @@
             <!-- Contenu du modal -->
             <div class="p-6 max-h-[80vh] overflow-y-auto">
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- Prévisualisation PDF -->
+                    <!-- Zone de prévisualisation -->
                     <div class="space-y-4">
-                        <h4 class="text-lg font-semibold text-gray-800 flex items-center">
-                            <svg class="w-5 h-5 mr-2 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                        <h4 id="previewTitle" class="text-lg font-semibold text-gray-800 flex items-center">
+                            <svg id="previewIcon" class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
                             </svg>
-                            Document PDF
+                            Document
                         </h4>
 
-                        <!-- Viewer PDF intégré -->
-                        <div class="bg-gray-100 rounded-lg p-4 min-h-96">
-                            <iframe
-                                id="pdfViewer"
-                                class="w-full h-96 rounded border-0"
-                                frameborder="0"
-                                title="Prévisualisation PDF">
-                            </iframe>
+                        <!-- Zone de prévisualisation dynamique -->
+                        <div id="previewContainer" class="bg-gray-100 rounded-lg p-4 min-h-96">
+                            <!-- Contenu sera généré dynamiquement -->
                         </div>
 
-                        <!-- Actions PDF -->
+                        <!-- Actions -->
                         <div class="flex flex-wrap gap-2">
-                            <a id="downloadPdfBtn" href="#" download class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
+                            <a id="downloadBtn" href="#" download class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                 </svg>
                                 Télécharger
                             </a>
-                            <button onclick="openInNewTab()" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors">
+                            <button id="openInNewTabBtn" onclick="openInNewTab()" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
                                 </svg>
@@ -116,28 +111,30 @@
     </div>
 </div>
 
-<!-- Scripts pour le modal PDF -->
+<!-- Scripts pour le modal universel -->
 <script>
-let currentPdfUrl = '';
+let currentFileUrl = '';
+let currentFileType = '';
 
-function openPdfModal(pdfUrl, documentData) {
-    currentPdfUrl = pdfUrl;
-    const modal = document.getElementById('pdfModal');
-    const viewer = document.getElementById('pdfViewer');
-    const title = document.getElementById('pdfModalTitle');
-    const downloadBtn = document.getElementById('downloadPdfBtn');
+function openUniversalModal(fileUrl, documentData, fileExtension) {
+    currentFileUrl = fileUrl;
+    currentFileType = fileExtension;
 
-    // Configurer le viewer PDF
-    viewer.src = pdfUrl + '#toolbar=1&navpanes=1&scrollbar=1';
+    const modal = document.getElementById('universalModal');
+    const title = document.getElementById('universalModalTitle');
+    const downloadBtn = document.getElementById('downloadBtn');
 
     // Configurer le titre
-    title.textContent = documentData.filename || 'Document PDF';
+    title.textContent = documentData.filename || 'Document';
 
     // Configurer le bouton de téléchargement
-    downloadBtn.href = pdfUrl;
-    downloadBtn.download = documentData.filename || 'document.pdf';
+    downloadBtn.href = fileUrl;
+    downloadBtn.download = documentData.filename || 'document';
 
-    // Remplir les informations du document
+    // Générer la prévisualisation selon le type
+    generatePreview(fileUrl, fileExtension, documentData);
+
+    // Remplir les informations
     fillDocumentInfo(documentData);
     fillProcessingStatus(documentData);
     fillOcrResults(documentData);
@@ -152,12 +149,128 @@ function openPdfModal(pdfUrl, documentData) {
     }, 10);
 }
 
-function closePdfModal(event) {
+function generatePreview(fileUrl, extension, documentData) {
+    const container = document.getElementById('previewContainer');
+    const title = document.getElementById('previewTitle');
+    const icon = document.getElementById('previewIcon');
+    const headerIcon = document.getElementById('modalHeaderIcon');
+
+    switch(extension.toLowerCase()) {
+        case 'pdf':
+            title.innerHTML = '<svg class="w-5 h-5 mr-2 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path></svg>Document PDF';
+            container.innerHTML = `
+                <iframe src="${fileUrl}#toolbar=1&navpanes=1&scrollbar=1"
+                        class="w-full h-96 rounded border-0"
+                        frameborder="0"
+                        title="Prévisualisation PDF">
+                </iframe>
+            `;
+            break;
+
+        case 'jpg':
+        case 'jpeg':
+        case 'png':
+        case 'gif':
+        case 'bmp':
+        case 'webp':
+            title.innerHTML = '<svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>Image';
+            container.innerHTML = `
+                <div class="flex items-center justify-center h-96">
+                    <img src="${fileUrl}" alt="${documentData.filename}" class="max-w-full max-h-full object-contain rounded">
+                </div>
+            `;
+            break;
+
+        case 'doc':
+        case 'docx':
+            title.innerHTML = '<svg class="w-5 h-5 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm0 2h12v10H4V5zm2 3h8v1H6V8zm0 2h8v1H6v-1zm0 2h5v1H6v-1z"/></svg>Document Word';
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-96 text-center">
+                    <div class="w-24 h-24 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                        <svg class="w-12 h-12 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm0 2h12v10H4V5zm2 3h8v1H6V8zm0 2h8v1H6v-1zm0 2h5v1H6v-1z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">${documentData.filename}</h3>
+                    <p class="text-sm text-gray-500 mb-4">Document Microsoft Word</p>
+                    <p class="text-xs text-gray-400">Prévisualisation non disponible - Utilisez le bouton télécharger pour ouvrir le fichier</p>
+                </div>
+            `;
+            break;
+
+        case 'xls':
+        case 'xlsx':
+            title.innerHTML = '<svg class="w-5 h-5 mr-2 text-green-600" fill="currentColor" viewBox="0 0 20 20"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/></svg>Fichier Excel';
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-96 text-center">
+                    <div class="w-24 h-24 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+                        <svg class="w-12 h-12 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">${documentData.filename}</h3>
+                    <p class="text-sm text-gray-500 mb-4">Fichier Microsoft Excel</p>
+                    <p class="text-xs text-gray-400">Prévisualisation non disponible - Utilisez le bouton télécharger pour ouvrir le fichier</p>
+                </div>
+            `;
+            break;
+
+        case 'ppt':
+        case 'pptx':
+            title.innerHTML = '<svg class="w-5 h-5 mr-2 text-orange-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4V5h12v10z"/></svg>Présentation PowerPoint';
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-96 text-center">
+                    <div class="w-24 h-24 bg-orange-100 rounded-lg flex items-center justify-center mb-4">
+                        <svg class="w-12 h-12 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4V5h12v10z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">${documentData.filename}</h3>
+                    <p class="text-sm text-gray-500 mb-4">Présentation Microsoft PowerPoint</p>
+                    <p class="text-xs text-gray-400">Prévisualisation non disponible - Utilisez le bouton télécharger pour ouvrir le fichier</p>
+                </div>
+            `;
+            break;
+
+        case 'txt':
+            title.innerHTML = '<svg class="w-5 h-5 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>Fichier texte';
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-96 text-center">
+                    <div class="w-24 h-24 bg-gray-100 rounded-lg flex items-center justify-center mb-4">
+                        <svg class="w-12 h-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">${documentData.filename}</h3>
+                    <p class="text-sm text-gray-500 mb-4">Fichier texte</p>
+                    <p class="text-xs text-gray-400">Prévisualisation non disponible - Utilisez le bouton télécharger pour ouvrir le fichier</p>
+                </div>
+            `;
+            break;
+
+        default:
+            title.innerHTML = '<svg class="w-5 h-5 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>Document';
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-96 text-center">
+                    <div class="w-24 h-24 bg-gray-100 rounded-lg flex items-center justify-center mb-4">
+                        <svg class="w-12 h-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">${documentData.filename}</h3>
+                    <p class="text-sm text-gray-500 mb-4">Type: ${extension.toUpperCase()}</p>
+                    <p class="text-xs text-gray-400">Prévisualisation non disponible - Utilisez le bouton télécharger pour ouvrir le fichier</p>
+                </div>
+            `;
+    }
+}
+
+function closeUniversalModal(event) {
     if (event && event.target !== event.currentTarget && event.type !== 'click') {
         return;
     }
 
-    const modal = document.getElementById('pdfModal');
+    const modal = document.getElementById('universalModal');
     const transform = modal.querySelector('.transform');
 
     // Animation de fermeture
@@ -167,13 +280,14 @@ function closePdfModal(event) {
 
     setTimeout(() => {
         modal.classList.add('hidden');
-        document.getElementById('pdfViewer').src = '';
+        // Nettoyer le contenu
+        document.getElementById('previewContainer').innerHTML = '';
     }, 300);
 }
 
 function openInNewTab() {
-    if (currentPdfUrl) {
-        window.open(currentPdfUrl, '_blank');
+    if (currentFileUrl) {
+        window.open(currentFileUrl, '_blank');
     }
 }
 
@@ -284,17 +398,43 @@ function fillAiAnalysis(data) {
     const container = document.getElementById('aiAnalysis');
 
     if (data.ai_summary) {
+        // Nettoyer le formatage Markdown/HTML
+        let cleanSummary = data.ai_summary
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // **text** -> <strong>text</strong>
+            .replace(/\*(.*?)\*/g, '<em>$1</em>') // *text* -> <em>text</em>
+            .replace(/###\s*(.*?)$/gm, '<h4 class="font-semibold text-gray-800 mt-3 mb-1">$1</h4>') // ### Title
+            .replace(/##\s*(.*?)$/gm, '<h3 class="font-semibold text-gray-800 mt-4 mb-2">$1</h3>') // ## Title
+            .replace(/#\s*(.*?)$/gm, '<h2 class="font-bold text-gray-900 mt-4 mb-2">$1</h2>') // # Title
+            .replace(/^\s*[-*+]\s+(.*)$/gm, '<li class="ml-4">• $1</li>') // Liste
+            .replace(/\n\n/g, '</p><p class="mb-2">') // Paragraphes
+            .replace(/\n/g, '<br>'); // Sauts de ligne
+
+        // Si on détecte des listes, les wrapper
+        if (cleanSummary.includes('<li')) {
+            cleanSummary = cleanSummary.replace(/(<li.*?<\/li>)/g, '<ul class="list-none space-y-1">$1</ul>');
+        }
+
+        // Wrapper dans un paragraphe si pas déjà fait
+        if (!cleanSummary.startsWith('<h') && !cleanSummary.startsWith('<p')) {
+            cleanSummary = '<p class="mb-2">' + cleanSummary + '</p>';
+        }
+
         container.innerHTML = `
             <div class="space-y-3">
                 <div class="flex items-center space-x-2">
                     <span class="text-green-600 text-sm font-medium">✅ Analyse terminée</span>
                 </div>
-                <div class="bg-white p-3 rounded border">
-                    <div class="text-sm text-gray-800">${data.ai_summary}</div>
+                <div class="bg-white p-4 rounded border">
+                    <div class="text-sm text-gray-800 prose prose-sm max-w-none">
+                        ${cleanSummary}
+                    </div>
                 </div>
                 ${data.ai_classification ? `
-                    <div class="text-xs text-gray-600">
-                        <strong>Classification :</strong> ${data.ai_classification}
+                    <div class="bg-blue-50 p-3 rounded border border-blue-200">
+                        <div class="text-xs text-blue-800">
+                            <strong class="font-medium">Classification :</strong>
+                            <span class="ml-1 px-2 py-1 bg-blue-100 rounded text-xs">${data.ai_classification}</span>
+                        </div>
                     </div>
                 ` : ''}
             </div>
@@ -315,7 +455,49 @@ function fillAiAnalysis(data) {
 // Fermer le modal avec Escape
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
-        closePdfModal();
+        closeUniversalModal();
     }
 });
+
+// Fonction de compatibilité pour l'ancien modal PDF
+function openPdfModal(pdfUrl, documentData) {
+    openUniversalModal(pdfUrl, documentData, 'pdf');
+}
+
+function closePdfModal(event) {
+    closeUniversalModal(event);
+}
+
+// Fonction pour l'intégration avec la liste de documents
+function openDocumentModal(documentId) {
+    // Récupérer les données du document via l'API
+    fetch(`/api/documents/${documentId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const document = data.document;
+
+                // Vérifier que les données essentielles existent
+                if (!document.filename || !document.file_path) {
+                    console.error('Données du document manquantes:', document);
+                    alert('Erreur: données du document incomplètes');
+                    return;
+                }
+
+                const fileUrl = `/storage/${document.file_path}`;
+                const extension = document.filename.includes('.')
+                    ? document.filename.split('.').pop().toLowerCase()
+                    : 'unknown';
+
+                openUniversalModal(fileUrl, document, extension);
+            } else {
+                console.error('Erreur lors de la récupération du document:', data.message);
+                alert('Erreur lors du chargement du document');
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            alert('Erreur lors du chargement du document');
+        });
+}
 </script>

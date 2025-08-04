@@ -138,10 +138,24 @@ class AuthController extends Controller
     {
         $user = Auth::user();
 
-        // Get user statistics
+        // Get user statistics with correct logic
         $totalDocuments = $user->documents()->count();
-        $completedDocuments = $user->documents()->where('status', 'completed')->count();
-        $processingDocuments = $user->documents()->where('status', 'processing')->count();
+
+        // Utiliser la même logique que dans les vues pour calculer les statuts
+        $documents = $user->documents()->get();
+
+        $completedDocuments = $documents->filter(function($doc) {
+            $hasOcrText = !empty($doc->ocr_text) && $doc->ocr_text !== 'En attente de traitement...';
+            $hasAiAnalysis = !empty($doc->ai_analysis) && $doc->ai_analysis !== 'Analyse en cours...';
+            return $hasOcrText && $hasAiAnalysis;
+        })->count();
+
+        $processingDocuments = $documents->filter(function($doc) {
+            $hasOcrText = !empty($doc->ocr_text) && $doc->ocr_text !== 'En attente de traitement...';
+            $hasAiAnalysis = !empty($doc->ai_analysis) && $doc->ai_analysis !== 'Analyse en cours...';
+            return !($hasOcrText && $hasAiAnalysis);
+        })->count();
+
         $totalSpent = $user->invoices()->where('status', 'paid')->sum('total_amount');
 
         // Get recent documents

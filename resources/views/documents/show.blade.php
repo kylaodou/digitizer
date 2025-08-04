@@ -59,19 +59,110 @@
                         @if(isset($document->file_path))
                             @php
                                 $extension = pathinfo($document->file_path, PATHINFO_EXTENSION);
+                                $mimeType = $document->mime_type ?? '';
+                                $isImage = str_contains($mimeType, 'image/') || in_array(strtolower($extension), ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff', 'svg']);
+                                $isPdf = str_contains($mimeType, 'pdf') || strtolower($extension) === 'pdf';
+
+                                // Détection complète des formats Office et bureautiques
+                                $officeExtensions = [
+                                    // Microsoft Word
+                                    'doc', 'docx', 'docm', 'dot', 'dotx', 'dotm', 'rtf',
+                                    // Microsoft Excel
+                                    'xls', 'xlsx', 'xlsm', 'xlsb', 'xlt', 'xltx', 'xltm', 'xlam', 'csv',
+                                    // Microsoft PowerPoint
+                                    'ppt', 'pptx', 'pptm', 'pot', 'potx', 'potm', 'ppam', 'ppsx', 'ppsm', 'pps',
+                                    // Microsoft Access
+                                    'mdb', 'accdb', 'accde', 'accdt', 'accdr',
+                                    // Microsoft Visio
+                                    'vsd', 'vsdx', 'vsdm', 'vss', 'vssx', 'vssm', 'vst', 'vstx', 'vstm',
+                                    // Microsoft Project
+                                    'mpp', 'mpt',
+                                    // LibreOffice/OpenOffice
+                                    'odt', 'ott', 'ods', 'ots', 'odp', 'otp', 'odg', 'otg', 'odf', 'odb', 'odc', 'odm',
+                                    // Autres formats bureautiques
+                                    'pages', 'numbers', 'key', 'epub', 'mobi'
+                                ];
+
+                                $officeMimeTypes = [
+                                    'application/msword',
+                                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                                    'application/vnd.ms-word.document.macroEnabled.12',
+                                    'application/vnd.ms-excel',
+                                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                                    'application/vnd.ms-excel.sheet.macroEnabled.12',
+                                    'application/vnd.ms-powerpoint',
+                                    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                                    'application/vnd.ms-powerpoint.presentation.macroEnabled.12',
+                                    'application/vnd.oasis.opendocument.text',
+                                    'application/vnd.oasis.opendocument.spreadsheet',
+                                    'application/vnd.oasis.opendocument.presentation',
+                                    'application/rtf'
+                                ];
+
+                                $isOffice = in_array(strtolower($extension), $officeExtensions) ||
+                                           str_contains($mimeType, 'word') || str_contains($mimeType, 'excel') || str_contains($mimeType, 'powerpoint') ||
+                                           str_contains($mimeType, 'document') || str_contains($mimeType, 'spreadsheet') || str_contains($mimeType, 'presentation') ||
+                                           str_contains($mimeType, 'opendocument') || str_contains($mimeType, 'officedocument') ||
+                                           collect($officeMimeTypes)->contains(fn($mime) => str_contains($mimeType, $mime));
+
+                                $isText = str_contains($mimeType, 'text/') || in_array(strtolower($extension), ['txt', 'csv', 'json', 'xml', 'md', 'log', 'ini', 'cfg', 'conf']);
+
+                                // Logique pour afficher les prévisualisations RÉELLES
+                                $hasRealPreview = false;
+                                $previewUrl = '';
+
+                                // 1. Priorité au thumbnail généré s'il existe
+                                if ($document->thumbnail_path && file_exists(public_path('storage/' . $document->thumbnail_path))) {
+                                    $hasRealPreview = true;
+                                    $previewUrl = asset('storage/' . $document->thumbnail_path);
+                                }
+                                // 2. Pour les images, utiliser le fichier original
+                                elseif ($isImage && $document->file_path && file_exists(public_path('storage/' . $document->file_path))) {
+                                    $hasRealPreview = true;
+                                    $previewUrl = asset('storage/' . $document->file_path);
+                                }
+                                // 3. Pour les PDF, essayer de créer un aperçu à la volée (si possible)
+                                elseif ($isPdf && $document->file_path && file_exists(public_path('storage/' . $document->file_path))) {
+                                    // Vérifier s'il y a un thumbnail PDF généré
+                                    $pdfThumbnailPath = 'thumbnails/' . pathinfo($document->file_path, PATHINFO_FILENAME) . '_thumb.jpg';
+                                    if (file_exists(public_path('storage/' . $pdfThumbnailPath))) {
+                                        $hasRealPreview = true;
+                                        $previewUrl = asset('storage/' . $pdfThumbnailPath);
+                                    }
+                                }
                             @endphp
 
-                            @if(in_array(strtolower($extension), ['jpg', 'jpeg', 'png', 'gif', 'webp']))
+                            <!-- APERÇU UNIVERSEL POUR TOUS LES TYPES -->
+                            @if($hasRealPreview)
+                                <!-- Véritable prévisualisation avec image -->
+                                <div class="max-w-full max-h-96">
+                                    <img src="{{ $previewUrl }}" alt="Aperçu du document" class="max-w-full max-h-96 rounded-lg shadow-md border">
+                                    <div class="mt-4 text-sm text-gray-600">
+                                        @if($isPdf)
+                                            📄 Aperçu de la première page (PDF)
+                                        @elseif($isOffice)
+                                            📊 Aperçu généré (Document Office)
+                                        @elseif($isImage)
+                                            🖼️ Image originale
+                                        @elseif($isText)
+                                            📝 Aperçu du contenu textuel
+                                        @else
+                                            📎 Aperçu du fichier {{ strtoupper($extension) }}
+                                        @endif
+                                    </div>
+                                </div>
+                            @elseif($isImage)
+                                <!-- Image directe si pas de thumbnail -->
                                 <img src="{{ asset('storage/' . $document->file_path) }}"
                                      alt="Document"
                                      class="max-w-full max-h-96 rounded-lg shadow-md">
-                            @elseif(strtolower($extension) === 'pdf')
-                                <div class="text-center">
-                                    <!-- Aperçu PDF avec iframe -->
+                            @elseif($isPdf)
+                                <!-- Aperçu PDF avec iframe -->
+                                <div class="w-full max-w-2xl">
                                     <div class="bg-white rounded-lg shadow-lg p-4 mb-4">
                                         <iframe
                                             src="{{ asset('storage/' . $document->file_path) }}#toolbar=0&navpanes=0&scrollbar=0"
-                                            class="w-full h-64 rounded border"
+                                            class="w-full h-96 rounded border"
                                             style="border: none;"
                                             title="Aperçu PDF">
                                         </iframe>
@@ -107,13 +198,223 @@
                                         </a>
                                     </div>
                                 </div>
+                            @elseif($isOffice)
+                                <!-- Aperçu stylisé pour Office -->
+                                <div class="max-w-lg mx-auto">
+                                    <div class="w-full h-64 rounded-lg border-2 border-dashed border-blue-300 bg-gradient-to-br from-blue-50 to-blue-100 flex flex-col items-center justify-center p-8">
+                                        <div class="text-center">
+                                            @php
+                                                // Détection détaillée des types de documents Office
+                                                $isPowerPoint = str_contains($mimeType, 'powerpoint') || str_contains($mimeType, 'presentation') ||
+                                                               in_array(strtolower($extension), ['ppt', 'pptx', 'pptm', 'pot', 'potx', 'potm', 'ppam', 'ppsx', 'ppsm', 'pps']) ||
+                                                               str_contains($mimeType, 'presentationml');
+
+                                                $isWord = str_contains($mimeType, 'word') || str_contains($mimeType, 'wordprocessingml') ||
+                                                         in_array(strtolower($extension), ['doc', 'docx', 'docm', 'dot', 'dotx', 'dotm', 'rtf']) ||
+                                                         str_contains($mimeType, 'msword');
+
+                                                $isExcel = str_contains($mimeType, 'excel') || str_contains($mimeType, 'spreadsheet') ||
+                                                          in_array(strtolower($extension), ['xls', 'xlsx', 'xlsm', 'xlsb', 'xlt', 'xltx', 'xltm', 'xlam']) ||
+                                                          str_contains($mimeType, 'spreadsheetml');
+
+                                                $isLibreOffice = in_array(strtolower($extension), ['odt', 'ott', 'ods', 'ots', 'odp', 'otp', 'odg', 'otg']) ||
+                                                                str_contains($mimeType, 'opendocument');
+
+                                                $isOtherOffice = in_array(strtolower($extension), ['pages', 'numbers', 'key', 'vsd', 'vsdx', 'mpp']) ||
+                                                                str_contains($mimeType, 'visio') || str_contains($mimeType, 'project');
+                                            @endphp
+
+                                            @if($isPowerPoint)
+                                                <svg class="w-16 h-16 text-orange-600 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4V5h12v10z"/>
+                                                </svg>
+                                                <h3 class="text-xl font-semibold text-orange-700 mb-2">
+                                                    @if(in_array(strtolower($extension), ['ppsx', 'ppsm', 'pps']))
+                                                        Diaporama PowerPoint
+                                                    @else
+                                                        Présentation PowerPoint
+                                                    @endif
+                                                </h3>
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800">{{ strtoupper($extension) }}</span>
+                                            @elseif($isWord)
+                                                <svg class="w-16 h-16 text-blue-600 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm0 2h12v10H4V5zm2 3h8v1H6V8zm0 2h8v1H6v-1zm0 2h5v1H6v-1z"/>
+                                                </svg>
+                                                <h3 class="text-xl font-semibold text-blue-700 mb-2">
+                                                    @if(strtolower($extension) === 'rtf')
+                                                        Document RTF
+                                                    @elseif(in_array(strtolower($extension), ['dot', 'dotx', 'dotm']))
+                                                        Modèle Word
+                                                    @else
+                                                        Document Word
+                                                    @endif
+                                                </h3>
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">{{ strtoupper($extension) }}</span>
+                                            @elseif($isExcel)
+                                                <svg class="w-16 h-16 text-green-600 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+                                                </svg>
+                                                <h3 class="text-xl font-semibold text-green-700 mb-2">
+                                                    @if(in_array(strtolower($extension), ['xlt', 'xltx', 'xltm']))
+                                                        Modèle Excel
+                                                    @elseif(strtolower($extension) === 'xlam')
+                                                        Complément Excel
+                                                    @else
+                                                        Feuille de calcul Excel
+                                                    @endif
+                                                </h3>
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">{{ strtoupper($extension) }}</span>
+                                            @elseif($isLibreOffice)
+                                                <svg class="w-16 h-16 text-purple-600 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4V5h12v10z"/>
+                                                </svg>
+                                                <h3 class="text-xl font-semibold text-purple-700 mb-2">
+                                                    @if(in_array(strtolower($extension), ['odt', 'ott']))
+                                                        Document LibreOffice Writer
+                                                    @elseif(in_array(strtolower($extension), ['ods', 'ots']))
+                                                        Tableur LibreOffice Calc
+                                                    @elseif(in_array(strtolower($extension), ['odp', 'otp']))
+                                                        Présentation LibreOffice Impress
+                                                    @else
+                                                        Document LibreOffice
+                                                    @endif
+                                                </h3>
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">{{ strtoupper($extension) }}</span>
+                                            @elseif($isOtherOffice)
+                                                <svg class="w-16 h-16 text-indigo-600 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4V5h12v10z"/>
+                                                </svg>
+                                                <h3 class="text-xl font-semibold text-indigo-700 mb-2">
+                                                    @if(strtolower($extension) === 'pages')
+                                                        Document Pages (Apple)
+                                                    @elseif(strtolower($extension) === 'numbers')
+                                                        Tableur Numbers (Apple)
+                                                    @elseif(strtolower($extension) === 'key')
+                                                        Présentation Keynote (Apple)
+                                                    @elseif(in_array(strtolower($extension), ['vsd', 'vsdx']))
+                                                        Diagramme Visio
+                                                    @elseif(strtolower($extension) === 'mpp')
+                                                        Projet Microsoft Project
+                                                    @else
+                                                        Document spécialisé
+                                                    @endif
+                                                </h3>
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">{{ strtoupper($extension) }}</span>
+                                            @else
+                                                <svg class="w-16 h-16 text-blue-600 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4V5h12v10z"/>
+                                                </svg>
+                                                <h3 class="text-xl font-semibold text-blue-700 mb-2">Document Office</h3>
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">{{ strtoupper($extension) }}</span>
+                                            @endif
+                                        </div>
+
+                                        <!-- OCR Preview si disponible -->
+                                        @if(!empty($document->ocr_text) && $document->ocr_text !== 'En attente de traitement...')
+                                            <div class="mt-4 max-w-sm">
+                                                <div class="bg-white/80 rounded-lg p-3 text-xs text-gray-700 text-left">
+                                                    <div class="font-medium mb-1">Aperçu du contenu :</div>
+                                                    <div class="text-xs leading-tight">
+                                                        {{ Str::limit(strip_tags($document->ocr_text), 150) }}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endif
+                                    </div>
+
+                                    <div class="mt-4 text-center">
+                                        <a href="{{ asset('storage/' . $document->file_path) }}"
+                                           download="{{ $document->name ?? 'document.' . $extension }}"
+                                           class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
+                                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                            </svg>
+                                            Télécharger
+                                        </a>
+                                    </div>
+                                </div>
+                            @elseif($isText)
+                                <!-- Aperçu texte avec contenu réel -->
+                                <div class="max-w-2xl mx-auto">
+                                    <div class="bg-white rounded-lg border shadow-sm p-6 text-left">
+                                        <div class="flex items-center mb-4">
+                                            <svg class="w-6 h-6 text-gray-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                            </svg>
+                                            <h3 class="text-lg font-medium text-gray-900">Fichier Texte</h3>
+                                            <span class="ml-2 inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">{{ strtoupper($extension) }}</span>
+                                        </div>
+
+                                        @if($document->file_path && file_exists(public_path('storage/' . $document->file_path)))
+                                            @php
+                                                $fileContent = file_get_contents(public_path('storage/' . $document->file_path));
+                                                $preview = substr($fileContent, 0, 1000);
+                                            @endphp
+                                            <div class="bg-gray-50 rounded border p-4">
+                                                <pre class="text-sm text-gray-700 whitespace-pre-wrap font-mono">{{ $preview }}{{ strlen($fileContent) > 1000 ? "\n\n... [Contenu tronqué]" : '' }}</pre>
+                                            </div>
+                                        @else
+                                            <div class="bg-gray-50 rounded border p-4 text-center text-gray-500">
+                                                <p>Contenu du fichier non accessible</p>
+                                            </div>
+                                        @endif
+
+                                        <div class="mt-4 text-center">
+                                            <a href="{{ asset('storage/' . $document->file_path) }}"
+                                               download="{{ $document->name ?? 'document.' . $extension }}"
+                                               class="inline-flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium rounded-lg transition-colors">
+                                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                                </svg>
+                                                Télécharger
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
                             @else
-                                <div class="text-center">
-                                    <svg class="w-24 h-24 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                    </svg>
-                                    <h3 class="text-lg font-medium text-gray-900 mb-2">Document {{ strtoupper($extension) }}</h3>
-                                    <p class="text-gray-600">Aperçu non disponible pour ce type de fichier</p>
+                                <!-- Aperçu générique pour autres types -->
+                                <div class="max-w-lg mx-auto">
+                                    <div class="w-full h-64 rounded-lg border-2 border-dashed border-purple-300 bg-gradient-to-br from-purple-50 to-purple-100 flex flex-col items-center justify-center p-8">
+                                        <div class="text-center">
+                                            <div class="text-6xl mb-4">
+                                                @if(str_contains($mimeType, 'video') || in_array(strtolower($extension), ['mp4', 'avi', 'mov', 'wmv']))
+                                                    🎥
+                                                @elseif(str_contains($mimeType, 'audio') || in_array(strtolower($extension), ['mp3', 'wav', 'flac', 'ogg']))
+                                                    🎵
+                                                @elseif(str_contains($mimeType, 'archive') || in_array(strtolower($extension), ['zip', 'rar', '7z', 'tar']))
+                                                    📦
+                                                @else
+                                                    📄
+                                                @endif
+                                            </div>
+                                            <h3 class="text-xl font-semibold text-purple-700 mb-2">Fichier {{ strtoupper($extension) }}</h3>
+                                            <p class="text-sm text-purple-600 mb-4">Type : {{ $mimeType ?: 'Non détecté' }}</p>
+                                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">{{ strtoupper($extension) }}</span>
+                                        </div>
+
+                                        <!-- OCR Preview si disponible -->
+                                        @if(!empty($document->ocr_text) && $document->ocr_text !== 'En attente de traitement...')
+                                            <div class="mt-4 max-w-sm">
+                                                <div class="bg-white/80 rounded-lg p-3 text-xs text-gray-700 text-left">
+                                                    <div class="font-medium mb-1">Aperçu du contenu :</div>
+                                                    <div class="text-xs leading-tight">
+                                                        {{ Str::limit(strip_tags($document->ocr_text), 150) }}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endif
+                                    </div>
+
+                                    <div class="mt-4 text-center">
+                                        <a href="{{ asset('storage/' . $document->file_path) }}"
+                                           download="{{ $document->name ?? 'document.' . $extension }}"
+                                           class="inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors">
+                                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                            </svg>
+                                            Télécharger
+                                        </a>
+                                    </div>
                                 </div>
                             @endif
                         @else

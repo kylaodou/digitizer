@@ -68,52 +68,255 @@
             @foreach($documents as $document)
                 <div class="card hover:shadow-lg transition-shadow duration-200">
                     <!-- Document Thumbnail -->
-                    <div class="aspect-w-16 aspect-h-9 mb-4">
-                        @if($document->thumbnail_path)
-                            <img src="{{ $document->thumbnail_url }}" alt="{{ $document->title }}" class="w-full h-32 object-cover rounded-md bg-gray-100">
+                    <div class="aspect-w-16 aspect-h-9 mb-4 relative">
+                        @php
+                            // Utiliser mime_type pour déterminer le type de fichier
+                            $mimeType = $document->mime_type ?? '';
+                            $isImage = str_contains($mimeType, 'image/');
+                            $isPdf = str_contains($mimeType, 'pdf');
+                            $isOffice = str_contains($mimeType, 'word') || str_contains($mimeType, 'excel') || str_contains($mimeType, 'powerpoint') ||
+                                       str_contains($mimeType, 'document') || str_contains($mimeType, 'spreadsheet') || str_contains($mimeType, 'presentation') ||
+                                       in_array($fileExtension, ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'pptm']);
+                            $isText = str_contains($mimeType, 'text/');
+
+                            // Déterminer l'extension du fichier pour les fallbacks
+                            $fileExtension = '';
+                            if ($document->file_path) {
+                                $fileExtension = strtolower(pathinfo($document->file_path, PATHINFO_EXTENSION));
+                            } elseif ($document->original_filename) {
+                                $fileExtension = strtolower(pathinfo($document->original_filename, PATHINFO_EXTENSION));
+                            }
+
+                            // Logique pour afficher les prévisualisations RÉELLES
+                            $hasRealPreview = false;
+                            $previewUrl = '';
+
+                            // 1. Priorité au thumbnail généré s'il existe
+                            if ($document->thumbnail_path && file_exists(public_path('storage/' . $document->thumbnail_path))) {
+                                $hasRealPreview = true;
+                                $previewUrl = asset('storage/' . $document->thumbnail_path);
+                            }
+                            // 2. Pour les images, utiliser le fichier original
+                            elseif ($isImage && $document->file_path && file_exists(public_path('storage/' . $document->file_path))) {
+                                $hasRealPreview = true;
+                                $previewUrl = asset('storage/' . $document->file_path);
+                            }
+                            // 3. Pour les PDF, essayer de créer un aperçu à la volée (si possible)
+                            elseif ($isPdf && $document->file_path && file_exists(public_path('storage/' . $document->file_path))) {
+                                // Vérifier s'il y a un thumbnail PDF généré
+                                $pdfThumbnailPath = 'thumbnails/' . pathinfo($document->file_path, PATHINFO_FILENAME) . '_thumb.jpg';
+                                if (file_exists(public_path('storage/' . $pdfThumbnailPath))) {
+                                    $hasRealPreview = true;
+                                    $previewUrl = asset('storage/' . $pdfThumbnailPath);
+                                }
+                            }
+                        @endphp
+
+                        <!-- APERÇU UNIVERSEL POUR TOUS LES TYPES -->
+                        @if($hasRealPreview)
+                            <!-- Véritable prévisualisation avec image -->
+                            <div class="w-full h-32 rounded-md overflow-hidden bg-gray-100 border-2 border-blue-200 cursor-pointer hover:scale-105 transition-transform relative" onclick="openDocumentModal({{ $document->id }})">
+                                <img src="{{ $previewUrl }}" alt="{{ $document->title }}" class="w-full h-full object-cover">
+                                <!-- Overlay avec type de fichier -->
+                                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                                    <span class="text-white text-xs font-medium">
+                                        @if($isPdf)
+                                            📄 PDF
+                                        @elseif($isOffice)
+                                            📊 OFFICE
+                                        @elseif($isImage)
+                                            🖼️ IMAGE
+                                        @elseif($isText)
+                                            📝 TEXTE
+                                        @else
+                                            📎 {{ strtoupper($fileExtension) }}
+                                        @endif
+                                    </span>
+                                </div>
+                            </div>
+                        @elseif($isImage && $document->file_path && file_exists(public_path('storage/' . $document->file_path)))
+                            <!-- Image directe si pas de thumbnail -->
+                            <div class="w-full h-32 rounded-md overflow-hidden bg-gray-100 border-2 border-green-200 cursor-pointer hover:scale-105 transition-transform relative" onclick="openDocumentModal({{ $document->id }})">
+                                <img src="{{ asset('storage/' . $document->file_path) }}" alt="{{ $document->title }}" class="w-full h-full object-cover">
+                                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                                    <span class="text-white text-xs font-medium">🖼️ IMAGE</span>
+                                </div>
+                            </div>
+                        @elseif($isPdf && $document->file_path && file_exists(public_path('storage/' . $document->file_path)))
+                            <!-- Aperçu PDF de haute qualité -->
+                            <div class="w-full h-32 rounded-md overflow-hidden bg-white border-2 border-red-200 cursor-pointer hover:scale-105 transition-transform relative" onclick="openDocumentModal({{ $document->id }})">
+                                <iframe src="{{ asset('storage/' . $document->file_path) }}#toolbar=0&navpanes=0&scrollbar=0"
+                                        class="w-full h-full border-none"
+                                        style="border: none; transform: scale(0.8); transform-origin: top left; width: 125%; height: 125%;"
+                                        title="Aperçu PDF">
+                                </iframe>
+                                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                                    <span class="text-white text-xs font-medium">📄 PDF</span>
+                                </div>
+                            </div>
+                        @elseif($isOffice)
+                            <!-- Aperçu stylisé pour Office avec contenu OCR réel -->
+                            <div class="w-full h-32 rounded-md overflow-hidden border-2 border-blue-300 bg-gradient-to-br from-blue-50 to-blue-100 cursor-pointer hover:scale-105 transition-transform relative" onclick="openDocumentModal({{ $document->id }})">
+                                <div class="w-full h-full relative bg-white/90 border border-gray-200 p-2">
+                                    <div class="text-center mb-2">
+                                        @if(str_contains($mimeType, 'word') || str_contains($mimeType, 'document') || in_array($fileExtension, ['doc', 'docx']))
+                                            <svg class="w-8 h-8 text-blue-600 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm0 2h12v10H4V5zm2 3h8v1H6V8zm0 2h8v1H6v-1zm0 2h5v1H6v-1z"/>
+                                            </svg>
+                                            <div class="text-xs font-medium text-blue-700">Document Word</div>
+                                        @elseif(str_contains($mimeType, 'excel') || str_contains($mimeType, 'spreadsheet') || in_array($fileExtension, ['xls', 'xlsx']))
+                                            <svg class="w-8 h-8 text-green-600 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+                                            </svg>
+                                            <div class="text-xs font-medium text-green-700">Feuille Excel</div>
+                                        @elseif(str_contains($mimeType, 'powerpoint') || str_contains($mimeType, 'presentation') || in_array($fileExtension, ['ppt', 'pptx', 'pptm']))
+                                            <svg class="w-8 h-8 text-orange-600 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4V5h12v10z"/>
+                                            </svg>
+                                            <div class="text-xs font-medium text-orange-700">Présentation PowerPoint</div>
+                                        @else
+                                            <svg class="w-8 h-8 text-blue-600 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4V5h12v10z"/>
+                                            </svg>
+                                            <div class="text-xs font-medium text-blue-700">Document Office</div>
+                                        @endif
+                                    </div>
+
+                                    <!-- Aperçu du contenu OCR si disponible -->
+                                    @if(!empty($document->ocr_text) && $document->ocr_text !== 'En attente de traitement...')
+                                        <div class="bg-white/80 rounded p-1 text-xs text-gray-700 leading-tight overflow-hidden">
+                                            <div class="font-medium mb-1">Contenu :</div>
+                                            <div class="text-xs">{{ Str::limit(strip_tags($document->ocr_text), 80) }}</div>
+                                        </div>
+                                    @else
+                                        <div class="text-xs text-gray-500 text-center">En attente de traitement...</div>
+                                    @endif
+                                </div>
+                                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                                    <span class="text-white text-xs font-medium">📊 {{ strtoupper($fileExtension) }}</span>
+                                </div>
+                            </div>
+                        @elseif($isText && $document->file_path && file_exists(public_path('storage/' . $document->file_path)))
+                            <!-- Aperçu texte avec contenu réel -->
+                            <div class="w-full h-32 rounded-md overflow-hidden border-2 border-gray-300 bg-white cursor-pointer hover:scale-105 transition-transform relative" onclick="openDocumentModal({{ $document->id }})">
+                                <div class="p-2 h-full overflow-hidden">
+                                    <div class="flex items-center mb-1">
+                                        <svg class="w-4 h-4 text-gray-600 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                        </svg>
+                                        <div class="text-xs font-medium text-gray-700">Fichier Texte</div>
+                                    </div>
+                                    @php
+                                        $fileContent = file_get_contents(public_path('storage/' . $document->file_path));
+                                        $preview = substr($fileContent, 0, 200);
+                                    @endphp
+                                    <div class="text-xs text-gray-600 font-mono leading-tight whitespace-pre-wrap overflow-hidden">{{ $preview }}{{ strlen($fileContent) > 200 ? '...' : '' }}</div>
+                                </div>
+                                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                                    <span class="text-white text-xs font-medium">📝 {{ strtoupper($fileExtension) }}</span>
+                                </div>
+                            </div>
                         @else
-                            <div class="w-full h-32 bg-gray-100 rounded-md flex items-center justify-center">
-                                <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                </svg>
+                            <!-- Aperçu générique pour autres types de fichiers -->
+                            <div class="w-full h-32 rounded-md overflow-hidden border-2 border-purple-300 bg-gradient-to-br from-purple-50 to-purple-100 cursor-pointer hover:scale-105 transition-transform relative" onclick="openDocumentModal({{ $document->id }})">
+                                <div class="w-full h-full relative bg-white/90 border border-gray-200 flex flex-col items-center justify-center p-4">
+                                    <div class="text-center">
+                                        <div class="text-3xl mb-2">
+                                            @if(str_contains($mimeType, 'video') || in_array($fileExtension, ['mp4', 'avi', 'mov', 'wmv']))
+                                                🎥
+                                            @elseif(str_contains($mimeType, 'audio') || in_array($fileExtension, ['mp3', 'wav', 'flac', 'ogg']))
+                                                🎵
+                                            @elseif(str_contains($mimeType, 'archive') || in_array($fileExtension, ['zip', 'rar', '7z', 'tar']))
+                                                📦
+                                            @else
+                                                📄
+                                            @endif
+                                        </div>
+                                        <div class="text-sm font-semibold text-purple-700 mb-1">Fichier {{ strtoupper($fileExtension) }}</div>
+                                        <div class="text-xs text-purple-600">{{ $mimeType ?: 'Type non détecté' }}</div>
+
+                                        <!-- Aperçu du contenu OCR si disponible -->
+                                        @if(!empty($document->ocr_text) && $document->ocr_text !== 'En attente de traitement...')
+                                            <div class="mt-2 bg-white/80 rounded p-1 text-xs text-gray-700 leading-tight max-w-full overflow-hidden">
+                                                <div class="font-medium mb-1">Contenu :</div>
+                                                <div class="text-xs">{{ Str::limit(strip_tags($document->ocr_text), 60) }}</div>
+                                            </div>
+                                        @else
+                                            <div class="mt-2 text-xs text-gray-500">En attente de traitement...</div>
+                                        @endif
+                                    </div>
+                                </div>
+                                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                                    <span class="text-white text-xs font-medium">📎 {{ strtoupper($fileExtension) }}</span>
+                                </div>
                             </div>
                         @endif
 
-                        <!-- Status Badge -->
+                        <!-- Document Type Badge -->
                         <div class="absolute top-2 right-2">
                             @php
-                                // Utilisation de la même logique de statut que dans show.blade.php
-                                $hasOcrText = !empty($document->ocr_text) && $document->ocr_text !== 'En attente de traitement...';
-                                $hasAiAnalysis = !empty($document->ai_analysis) && $document->ai_analysis !== 'Analyse en cours...';
+                                // Utiliser le type de document du modèle au lieu de l'extension
+                                $documentTypeText = '';
+                                $documentTypeColor = '';
 
-                                if ($hasOcrText && $hasAiAnalysis) {
-                                    $actualStatus = 'completed';
-                                    $statusText = 'Terminé';
-                                    $statusColor = 'bg-emerald-100 text-emerald-800';
-                                    $statusIcon = 'M5 13l4 4L19 7';
-                                } elseif ($hasOcrText && !$hasAiAnalysis) {
-                                    $actualStatus = 'processing';
-                                    $statusText = 'Analyse IA';
-                                    $statusColor = 'bg-amber-100 text-amber-800';
-                                    $statusIcon = 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z';
-                                } elseif (!$hasOcrText) {
-                                    $actualStatus = 'processing';
-                                    $statusText = 'Extraction';
-                                    $statusColor = 'bg-blue-100 text-blue-800';
-                                    $statusIcon = 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15';
+                                // Prioriser ai_document_type s'il existe, sinon utiliser mime_type puis extension
+                                if (!empty($document->ai_document_type)) {
+                                    $documentTypeText = strtoupper($document->ai_document_type);
+                                    $documentTypeColor = 'bg-purple-100 text-purple-800';
+                                } elseif (!empty($document->mime_type)) {
+                                    // Extraire le type principal du MIME type
+                                    $mimeType = $document->mime_type;
+                                    if (str_contains($mimeType, 'pdf')) {
+                                        $documentTypeText = 'PDF';
+                                        $documentTypeColor = 'bg-red-100 text-red-800';
+                                    } elseif (str_contains($mimeType, 'image')) {
+                                        $documentTypeText = 'IMAGE';
+                                        $documentTypeColor = 'bg-green-100 text-green-800';
+                                    } elseif (str_contains($mimeType, 'powerpoint') || str_contains($mimeType, 'presentation')) {
+                                        $documentTypeText = 'PPT';
+                                        $documentTypeColor = 'bg-orange-100 text-orange-800';
+                                    } elseif (str_contains($mimeType, 'word') || str_contains($mimeType, 'document')) {
+                                        $documentTypeText = 'WORD';
+                                        $documentTypeColor = 'bg-blue-100 text-blue-800';
+                                    } elseif (str_contains($mimeType, 'excel') || str_contains($mimeType, 'spreadsheet')) {
+                                        $documentTypeText = 'EXCEL';
+                                        $documentTypeColor = 'bg-emerald-100 text-emerald-800';
+                                    } elseif (str_contains($mimeType, 'text')) {
+                                        $documentTypeText = 'TEXTE';
+                                        $documentTypeColor = 'bg-gray-100 text-gray-800';
+                                    } else {
+                                        $documentTypeText = strtoupper(explode('/', $mimeType)[0]);
+                                        $documentTypeColor = 'bg-purple-100 text-purple-800';
+                                    }
                                 } else {
-                                    $actualStatus = 'uploaded';
-                                    $statusText = 'Téléversé';
-                                    $statusColor = 'bg-slate-100 text-slate-800';
-                                    $statusIcon = 'M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12';
+                                    // Fallback sur l'extension de fichier
+                                    if ($isPdf) {
+                                        $documentTypeText = 'PDF';
+                                        $documentTypeColor = 'bg-red-100 text-red-800';
+                                    } elseif ($isImage) {
+                                        $documentTypeText = strtoupper($fileExtension);
+                                        $documentTypeColor = 'bg-green-100 text-green-800';
+                                    } elseif (in_array($fileExtension, ['ppt', 'pptx', 'pptm'])) {
+                                        $documentTypeText = 'PPT';
+                                        $documentTypeColor = 'bg-orange-100 text-orange-800';
+                                    } elseif (in_array($fileExtension, ['doc', 'docx'])) {
+                                        $documentTypeText = 'WORD';
+                                        $documentTypeColor = 'bg-blue-100 text-blue-800';
+                                    } elseif (in_array($fileExtension, ['xls', 'xlsx'])) {
+                                        $documentTypeText = 'EXCEL';
+                                        $documentTypeColor = 'bg-emerald-100 text-emerald-800';
+                                    } elseif ($isText) {
+                                        $documentTypeText = 'TEXTE';
+                                        $documentTypeColor = 'bg-gray-100 text-gray-800';
+                                    } else {
+                                        $documentTypeText = strtoupper($fileExtension);
+                                        $documentTypeColor = 'bg-purple-100 text-purple-800';
+                                    }
                                 }
                             @endphp
 
-                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium {{ $statusColor }}">
-                                <svg class="w-3 h-3 mr-1 @if($actualStatus === 'processing') animate-spin @endif" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $statusIcon }}"></path>
-                                </svg>
-                                {{ $statusText }}
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium {{ $documentTypeColor }}">
+                                {{ $documentTypeText }}
                             </span>
                         </div>
                     </div>
@@ -140,14 +343,14 @@
 
                         <!-- Actions -->
                         <div class="flex space-x-2">
-                            <a href="{{ route('documents.show', $document) }}"
+                            <button onclick="openDocumentModal({{ $document->id }})"
                                class="flex-1 inline-flex justify-center items-center px-3 py-2 border border-indigo-200 shadow-sm text-sm leading-4 font-medium rounded-md text-indigo-700 bg-indigo-50 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
                                 <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                                 </svg>
                                 Voir
-                            </a>
+                            </button>
 
                             @php
                                 $hasOcrText = !empty($document->ocr_text) && $document->ocr_text !== 'En attente de traitement...';
@@ -278,6 +481,59 @@
         }
 
         setInterval(refreshProcessingDocuments, 10000); // Every 10 seconds
+
+        // Fonctions utilitaires
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function formatDate(dateString) {
+            return new Date(dateString).toLocaleString('fr-FR');
+        }
+
+        function getFileType(extension) {
+            const types = {
+                pdf: 'application/pdf',
+                doc: 'application/msword',
+                docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                xls: 'application/vnd.ms-excel',
+                xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                ppt: 'application/vnd.ms-powerpoint',
+                pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                txt: 'text/plain',
+                jpg: 'image/jpeg',
+                jpeg: 'image/jpeg',
+                png: 'image/png'
+            };
+            return types[extension] || 'application/octet-stream';
+        }
     });
+
+    // Fonction pour ouvrir la page du document
+    function openDocumentModal(documentId) {
+        // Rediriger vers la page de détail du document
+        window.location.href = `/documents/${documentId}`;
+    }
+
+    // Fonction pour formater la taille des fichiers (accessible globalement)
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Fonction pour formater les dates (accessible globalement)
+    function formatDate(dateString) {
+        return new Date(dateString).toLocaleString('fr-FR');
+    }
 </script>
 @endpush
+
+<!-- Inclure le modal universel -->
+@include('components.pdf-modal')

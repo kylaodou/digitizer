@@ -47,7 +47,7 @@
                     </div>
                 </div>
                 <p class="mt-2 text-xs text-blue-600">
-                    ✓ Extraction OCR incluse ✓ Stockage sécurisé ✓ Formats PDF, JPG, PNG acceptés
+                    ✓ Extraction OCR incluse ✓ Stockage sécurisé ✓ Tous types de fichiers acceptés
                 </p>
             </div>
         </div>
@@ -188,12 +188,11 @@
                                            name="file"
                                            type="file"
                                            class="sr-only"
-                                           accept=".pdf,.jpg,.jpeg,.png"
                                            required>
                                 </label>
                                 <p class="pl-1">ou glisser-déposer</p>
                             </div>
-                            <p class="text-xs leading-5 text-gray-600">PDF, PNG, JPG jusqu'à 10MB</p>
+                            <p class="text-xs leading-5 text-gray-600">Tous types de fichiers jusqu'à 10MB</p>
                         </div>
                     </div>
                 </div>

@@ -71,4 +71,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/settings', function () {
         return view('settings.index');
     })->name('settings');
+
+    // API Routes pour le modal universel
+    Route::get('/documents/{document}/api', [DocumentController::class, 'apiShow'])->name('api.documents.show');
 });
