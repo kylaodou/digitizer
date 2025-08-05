@@ -73,21 +73,28 @@
                             // Utiliser mime_type et file_path pour déterminer le type de fichier
                             $mimeType = $document->mime_type ?? '';
                             $fileExtension = $document->file_path ? strtolower(pathinfo($document->file_path, PATHINFO_EXTENSION)) : '';
+                            
+                            // Détection améliorée des types de fichiers
                             $isImage = str_contains($mimeType, 'image/') || in_array($fileExtension, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff', 'svg']);
                             $isPdf = str_contains($mimeType, 'pdf') || $fileExtension === 'pdf';
-                            $isOffice = str_contains($mimeType, 'word') || str_contains($mimeType, 'excel') || str_contains($mimeType, 'powerpoint') ||
-                                       str_contains($mimeType, 'document') || str_contains($mimeType, 'spreadsheet') || str_contains($mimeType, 'presentation') ||
-                                       str_contains($mimeType, 'officedocument') || str_contains($mimeType, 'opendocument') ||
-                                       in_array($fileExtension, ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'pptm', 'odt', 'ods', 'odp']);
+                            
+                            // Détection complète des documents Office avec MIME types spécifiques
+                            $isOffice = 
+                                // MIME types spécifiques Microsoft Office
+                                str_contains($mimeType, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') ||
+                                str_contains($mimeType, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') ||
+                                str_contains($mimeType, 'application/vnd.openxmlformats-officedocument.presentationml.presentation') ||
+                                str_contains($mimeType, 'application/msword') ||
+                                str_contains($mimeType, 'application/vnd.ms-excel') ||
+                                str_contains($mimeType, 'application/vnd.ms-powerpoint') ||
+                                // MIME types génériques
+                                str_contains($mimeType, 'word') || str_contains($mimeType, 'excel') || str_contains($mimeType, 'powerpoint') ||
+                                str_contains($mimeType, 'document') || str_contains($mimeType, 'spreadsheet') || str_contains($mimeType, 'presentation') ||
+                                str_contains($mimeType, 'officedocument') || str_contains($mimeType, 'opendocument') ||
+                                // Extensions fichier
+                                in_array($fileExtension, ['doc', 'docx', 'docm', 'dot', 'dotx', 'dotm', 'rtf', 'xls', 'xlsx', 'xlsm', 'xlsb', 'xlt', 'xltx', 'xltm', 'xlam', 'ppt', 'pptx', 'pptm', 'pot', 'potx', 'potm', 'ppam', 'ppsx', 'ppsm', 'pps', 'odt', 'ods', 'odp']);
+                            
                             $isText = str_contains($mimeType, 'text/') || in_array($fileExtension, ['txt', 'csv', 'json', 'xml']);
-
-                            // Déterminer l'extension du fichier pour les fallbacks
-                            $fileExtension = '';
-                            if ($document->file_path) {
-                                $fileExtension = strtolower(pathinfo($document->file_path, PATHINFO_EXTENSION));
-                            } elseif ($document->original_filename) {
-                                $fileExtension = strtolower(pathinfo($document->original_filename, PATHINFO_EXTENSION));
-                            }
 
                             // Logique pour afficher les prévisualisations RÉELLES
                             $hasRealPreview = false;
@@ -116,26 +123,76 @@
 
                         <!-- APERÇU UNIVERSEL POUR TOUS LES TYPES -->
                         @if($hasRealPreview)
-                            <!-- Véritable prévisualisation avec image -->
-                            <div class="w-full h-32 rounded-md overflow-hidden bg-gray-100 border-2 border-blue-200 cursor-pointer hover:scale-105 transition-transform relative" onclick="openDocumentModal({{ $document->id }})">
-                                <img src="{{ $previewUrl }}" alt="{{ $document->title }}" class="w-full h-full object-cover">
-                                <!-- Overlay avec type de fichier -->
-                                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-                                    <span class="text-white text-xs font-medium">
-                                        @if($isPdf)
-                                            📄 PDF
-                                        @elseif($isOffice)
-                                            📊 OFFICE
-                                        @elseif($isImage)
-                                            🖼️ IMAGE
-                                        @elseif($isText)
-                                            📝 TEXTE
-                                        @else
-                                            📎 {{ strtoupper($fileExtension) }}
-                                        @endif
-                                    </span>
+                            <!-- Véritable document ouvert (IDENTIQUE À LA VUE SHOW) -->
+                            @if($isPdf)
+                                <!-- Document PDF réel ouvert -->
+                                <div class="w-full h-32 rounded-md overflow-hidden bg-white border-2 border-red-200 cursor-pointer hover:scale-105 transition-transform relative" onclick="openDocumentModal({{ $document->id }})">
+                                    <iframe src="{{ asset('storage/' . $document->file_path) }}#toolbar=0&navpanes=0&scrollbar=0"
+                                            class="w-full h-full border-none"
+                                            style="border: none; transform: scale(0.6); transform-origin: top left; width: 167%; height: 167%;"
+                                            title="Aperçu PDF">
+                                    </iframe>
+                                    <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                                        <span class="text-white text-xs font-medium">📄 PDF</span>
+                                    </div>
                                 </div>
-                            </div>
+                            @elseif($isOffice)
+                                <!-- Document Office réel ouvert -->
+                                <div class="w-full h-32 rounded-md overflow-hidden border-2 border-blue-300 bg-white cursor-pointer hover:scale-105 transition-transform relative" onclick="openDocumentModal({{ $document->id }})">
+                                    @if(isset($document->ocr_text) && $document->ocr_text && !str_contains($document->ocr_text, 'ANALYSE BASIQUE'))
+                                        <!-- Contenu réel du document Office -->
+                                        <div class="w-full h-full bg-white p-2 overflow-hidden">
+                                            <div class="text-xs text-gray-700 leading-tight overflow-hidden" style="display: -webkit-box; -webkit-line-clamp: 8; -webkit-box-orient: vertical; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                                                {{ strip_tags($document->ocr_text) }}
+                                            </div>
+                                        </div>
+                                    @else
+                                        <!-- Document Office en attente -->
+                                        <div class="w-full h-full bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center">
+                                            @if(str_contains($mimeType, 'wordprocessingml') || str_contains($mimeType, 'msword') || in_array($fileExtension, ['doc', 'docx']))
+                                                <div class="text-center">
+                                                    <svg class="w-8 h-8 text-blue-600 mx-auto mb-1" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm0 2h12v10H4V5zm2 3h8v1H6V8zm0 2h8v1H6v-1zm0 2h5v1H6v-1z"/>
+                                                    </svg>
+                                                    <div class="text-xs font-medium text-blue-700">Word</div>
+                                                </div>
+                                            @elseif(str_contains($mimeType, 'spreadsheetml') || str_contains($mimeType, 'ms-excel') || in_array($fileExtension, ['xls', 'xlsx']))
+                                                <div class="text-center">
+                                                    <svg class="w-8 h-8 text-green-600 mx-auto mb-1" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+                                                    </svg>
+                                                    <div class="text-xs font-medium text-green-700">Excel</div>
+                                                </div>
+                                            @elseif(str_contains($mimeType, 'presentationml') || str_contains($mimeType, 'ms-powerpoint') || in_array($fileExtension, ['ppt', 'pptx', 'pptm']))
+                                                <div class="text-center">
+                                                    <svg class="w-8 h-8 text-orange-600 mx-auto mb-1" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4V5h12v10z"/>
+                                                    </svg>
+                                                    <div class="text-xs font-medium text-orange-700">PowerPoint</div>
+                                                </div>
+                                            @else
+                                                <div class="text-center">
+                                                    <svg class="w-8 h-8 text-blue-600 mx-auto mb-1" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4V5h12v10z"/>
+                                                    </svg>
+                                                    <div class="text-xs font-medium text-blue-700">Office</div>
+                                                </div>
+                                            @endif
+                                        </div>
+                                    @endif
+                                    <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                                        <span class="text-white text-xs font-medium">📊 OFFICE</span>
+                                    </div>
+                                </div>
+                            @else
+                                <!-- Image réelle -->
+                                <div class="w-full h-32 rounded-md overflow-hidden bg-gray-100 border-2 border-green-200 cursor-pointer hover:scale-105 transition-transform relative" onclick="openDocumentModal({{ $document->id }})">
+                                    <img src="{{ $previewUrl }}" alt="{{ $document->title }}" class="w-full h-full object-cover">
+                                    <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                                        <span class="text-white text-xs font-medium">🖼️ IMAGE</span>
+                                    </div>
+                                </div>
+                            @endif
                         @elseif($isImage && $document->file_path && file_exists(public_path('storage/' . $document->file_path)))
                             <!-- Image directe si pas de thumbnail -->
                             <div class="w-full h-32 rounded-md overflow-hidden bg-gray-100 border-2 border-green-200 cursor-pointer hover:scale-105 transition-transform relative" onclick="openDocumentModal({{ $document->id }})">
@@ -157,43 +214,73 @@
                                 </div>
                             </div>
                         @elseif($isOffice)
-                            <!-- Aperçu stylisé pour Office avec contenu OCR réel -->
-                            <div class="w-full h-32 rounded-md overflow-hidden border-2 border-blue-300 bg-gradient-to-br from-blue-50 to-blue-100 cursor-pointer hover:scale-105 transition-transform relative" onclick="openDocumentModal({{ $document->id }})">
-                                <div class="w-full h-full relative bg-white/90 border border-gray-200 p-2">
-                                    <div class="text-center mb-2">
-                                        @if(str_contains($mimeType, 'word') || str_contains($mimeType, 'document') || in_array($fileExtension, ['doc', 'docx']))
-                                            <svg class="w-8 h-8 text-blue-600 mx-auto" fill="currentColor" viewBox="0 0 20 20">
-                                                <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm0 2h12v10H4V5zm2 3h8v1H6V8zm0 2h8v1H6v-1zm0 2h5v1H6v-1z"/>
-                                            </svg>
-                                            <div class="text-xs font-medium text-blue-700">Document Word</div>
-                                        @elseif(str_contains($mimeType, 'excel') || str_contains($mimeType, 'spreadsheet') || in_array($fileExtension, ['xls', 'xlsx']))
-                                            <svg class="w-8 h-8 text-green-600 mx-auto" fill="currentColor" viewBox="0 0 20 20">
-                                                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
-                                            </svg>
-                                            <div class="text-xs font-medium text-green-700">Feuille Excel</div>
-                                        @elseif(str_contains($mimeType, 'powerpoint') || str_contains($mimeType, 'presentation') || in_array($fileExtension, ['ppt', 'pptx', 'pptm']))
-                                            <svg class="w-8 h-8 text-orange-600 mx-auto" fill="currentColor" viewBox="0 0 20 20">
-                                                <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4V5h12v10z"/>
-                                            </svg>
-                                            <div class="text-xs font-medium text-orange-700">Présentation PowerPoint</div>
-                                        @else
-                                            <svg class="w-8 h-8 text-blue-600 mx-auto" fill="currentColor" viewBox="0 0 20 20">
-                                                <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4V5h12v10z"/>
-                                            </svg>
-                                            <div class="text-xs font-medium text-blue-700">Document Office</div>
-                                        @endif
-                                    </div>
-
-                                    <!-- Aperçu du contenu OCR si disponible -->
-                                    @if(!empty($document->ocr_text) && $document->ocr_text !== 'En attente de traitement...')
-                                        <div class="bg-white/80 rounded p-1 text-xs text-gray-700 leading-tight overflow-hidden">
-                                            <div class="font-medium mb-1">Contenu :</div>
-                                            <div class="text-xs">{{ Str::limit(strip_tags($document->ocr_text), 80) }}</div>
+                            <!-- Document Office réel ouvert en prévisualisation -->
+                            <div class="w-full h-32 rounded-md overflow-hidden border-2 border-blue-300 bg-white cursor-pointer hover:scale-105 transition-transform relative" onclick="openDocumentModal({{ $document->id }})">
+                                @if(isset($document->ocr_text) && $document->ocr_text && !str_contains($document->ocr_text, 'ANALYSE BASIQUE'))
+                                    <!-- Affichage du contenu réel du document -->
+                                    <div class="w-full h-full bg-white p-2 flex flex-col">
+                                        <!-- Header avec type de document -->
+                                        <div class="flex items-center mb-1">
+                                            @if(str_contains($mimeType, 'wordprocessingml') || str_contains($mimeType, 'msword') || in_array($fileExtension, ['doc', 'docx']))
+                                                <svg class="w-4 h-4 text-blue-600 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm0 2h12v10H4V5zm2 3h8v1H6V8zm0 2h8v1H6v-1zm0 2h5v1H6v-1z"/>
+                                                </svg>
+                                                <span class="text-xs font-medium text-blue-700">Word</span>
+                                            @elseif(str_contains($mimeType, 'spreadsheetml') || str_contains($mimeType, 'ms-excel') || in_array($fileExtension, ['xls', 'xlsx']))
+                                                <svg class="w-4 h-4 text-green-600 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+                                                </svg>
+                                                <span class="text-xs font-medium text-green-700">Excel</span>
+                                            @elseif(str_contains($mimeType, 'presentationml') || str_contains($mimeType, 'ms-powerpoint') || in_array($fileExtension, ['ppt', 'pptx', 'pptm']))
+                                                <svg class="w-4 h-4 text-orange-600 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4V5h12v10z"/>
+                                                </svg>
+                                                <span class="text-xs font-medium text-orange-700">PowerPoint</span>
+                                            @else
+                                                <svg class="w-4 h-4 text-blue-600 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4V5h12v10z"/>
+                                                </svg>
+                                                <span class="text-xs font-medium text-blue-700">Office</span>
+                                            @endif
                                         </div>
-                                    @else
-                                        <div class="text-xs text-gray-500 text-center">En attente de traitement...</div>
-                                    @endif
-                                </div>
+                                        
+                                        <!-- Contenu réel du document -->
+                                        <div class="flex-1 overflow-hidden bg-gray-50 rounded p-1 border">
+                                            <div class="text-xs text-gray-700 leading-tight overflow-hidden" style="display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical;">
+                                                {{ strip_tags($document->ocr_text) }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                @else
+                                    <!-- Aperçu stylisé pour Office sans contenu -->
+                                    <div class="w-full h-full relative bg-white/90 border border-gray-200 p-2">
+                                        <div class="text-center mb-2">
+                                            @if(str_contains($mimeType, 'wordprocessingml') || str_contains($mimeType, 'msword') || in_array($fileExtension, ['doc', 'docx']))
+                                                <svg class="w-8 h-8 text-blue-600 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 2 0 00-2-2H4zm0 2h12v10H4V5zm2 3h8v1H6V8zm0 2h8v1H6v-1zm0 2h5v1H6v-1z"/>
+                                                </svg>
+                                                <div class="text-xs font-medium text-blue-700">Document Word</div>
+                                            @elseif(str_contains($mimeType, 'spreadsheetml') || str_contains($mimeType, 'ms-excel') || in_array($fileExtension, ['xls', 'xlsx']))
+                                                <svg class="w-8 h-8 text-green-600 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+                                                </svg>
+                                                <div class="text-xs font-medium text-green-700">Feuille Excel</div>
+                                            @elseif(str_contains($mimeType, 'presentationml') || str_contains($mimeType, 'ms-powerpoint') || in_array($fileExtension, ['ppt', 'pptx', 'pptm']))
+                                                <svg class="w-8 h-8 text-orange-600 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4V5h12v10z"/>
+                                                </svg>
+                                                <div class="text-xs font-medium text-orange-700">Présentation PowerPoint</div>
+                                            @else
+                                                <svg class="w-8 h-8 text-blue-600 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4V5h12v10z"/>
+                                                </svg>
+                                                <div class="text-xs font-medium text-blue-700">Document Office</div>
+                                            @endif
+                                        </div>
+
+                                        <div class="text-xs text-gray-500 text-center">En cours de traitement...</div>
+                                    </div>
+                                @endif
                                 <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
                                     <span class="text-white text-xs font-medium">📊 {{ strtoupper($fileExtension) }}</span>
                                 </div>

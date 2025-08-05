@@ -86,12 +86,12 @@
                                 $officeMimeTypes = [
                                     'application/msword',
                                     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                                    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
                                     'application/vnd.ms-word.document.macroEnabled.12',
                                     'application/vnd.ms-excel',
-                                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                                     'application/vnd.ms-excel.sheet.macroEnabled.12',
                                     'application/vnd.ms-powerpoint',
-                                    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
                                     'application/vnd.ms-powerpoint.presentation.macroEnabled.12',
                                     'application/vnd.oasis.opendocument.text',
                                     'application/vnd.oasis.opendocument.spreadsheet',
@@ -100,6 +100,14 @@
                                 ];
 
                                 $isOffice = in_array(strtolower($extension), $officeExtensions) ||
+                                           // MIME types spécifiques Microsoft Office
+                                           str_contains($mimeType, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') ||
+                                           str_contains($mimeType, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') ||
+                                           str_contains($mimeType, 'application/vnd.openxmlformats-officedocument.presentationml.presentation') ||
+                                           str_contains($mimeType, 'application/msword') ||
+                                           str_contains($mimeType, 'application/vnd.ms-excel') ||
+                                           str_contains($mimeType, 'application/vnd.ms-powerpoint') ||
+                                           // MIME types génériques
                                            str_contains($mimeType, 'word') || str_contains($mimeType, 'excel') || str_contains($mimeType, 'powerpoint') ||
                                            str_contains($mimeType, 'document') || str_contains($mimeType, 'spreadsheet') || str_contains($mimeType, 'presentation') ||
                                            str_contains($mimeType, 'opendocument') || str_contains($mimeType, 'officedocument') ||
@@ -221,11 +229,115 @@
                                             <!-- Contenu réel du document Office -->
                                             <div class="bg-gray-50 rounded-lg p-4" style="min-height: 400px; max-height: 500px; overflow-y: auto;">
                                                 @if(isset($document->ocr_text) && $document->ocr_text && !str_contains($document->ocr_text, 'ANALYSE BASIQUE'))
-                                                    <div class="bg-white rounded border p-4">
-                                                        <h5 class="font-medium text-gray-900 mb-3">Contenu du document :</h5>
-                                                        <div class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                                                            {{ $document->ocr_text }}
-                                                        </div>
+                                                    <!-- Simuler l'ouverture du document avec iframe/embed -->
+                                                    <div class="relative w-full h-full min-h-96 bg-white rounded-lg border">
+                                                        <!-- Essayer d'afficher le document directement -->
+                                                        @if(str_contains($mimeType, 'presentationml') || str_contains($mimeType, 'ms-powerpoint') || in_array($extension, ['ppt', 'pptx', 'pptm']))
+                                                            <!-- PowerPoint : essayer Office Online Viewer -->
+                                                            <iframe 
+                                                                src="https://view.officeapps.live.com/op/embed.aspx?src={{ urlencode(asset('storage/' . $document->file_path)) }}"
+                                                                class="w-full h-full rounded-lg border-0"
+                                                                style="min-height: 400px; border: none;"
+                                                                title="Présentation PowerPoint">
+                                                                <!-- Fallback si iframe ne fonctionne pas -->
+                                                                <div class="flex items-center justify-center h-full">
+                                                                    <div class="text-center p-6">
+                                                                        <svg class="w-16 h-16 text-orange-600 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
+                                                                            <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4V5h12v10z"/>
+                                                                        </svg>
+                                                                        <h3 class="text-lg font-medium text-gray-900 mb-2">Présentation PowerPoint</h3>
+                                                                        <div class="bg-gray-50 rounded-lg p-4 text-left">
+                                                                            <h5 class="font-medium text-gray-900 mb-3">Contenu extrait :</h5>
+                                                                            <div class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap max-h-64 overflow-y-auto">
+                                                                                {{ $document->ocr_text }}
+                                                                            </div>
+                                                                        </div>
+                                                                        <a href="{{ asset('storage/' . $document->file_path) }}" 
+                                                                           target="_blank"
+                                                                           class="mt-4 inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700">
+                                                                            📊 Ouvrir PowerPoint dans un nouvel onglet
+                                                                        </a>
+                                                                    </div>
+                                                                </div>
+                                                            </iframe>
+                                                        @elseif(str_contains($mimeType, 'wordprocessingml') || str_contains($mimeType, 'msword') || in_array($extension, ['doc', 'docx']))
+                                                            <!-- Word : essayer Office Online Viewer -->
+                                                            <iframe 
+                                                                src="https://view.officeapps.live.com/op/embed.aspx?src={{ urlencode(asset('storage/' . $document->file_path)) }}"
+                                                                class="w-full h-full rounded-lg border-0"
+                                                                style="min-height: 400px; border: none;"
+                                                                title="Document Word">
+                                                                <!-- Fallback si iframe ne fonctionne pas -->
+                                                                <div class="flex items-center justify-center h-full">
+                                                                    <div class="text-center p-6">
+                                                                        <svg class="w-16 h-16 text-blue-600 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
+                                                                            <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm0 2h12v10H4V5zm2 3h8v1H6V8zm0 2h8v1H6v-1zm0 2h5v1H6v-1z"/>
+                                                                        </svg>
+                                                                        <h3 class="text-lg font-medium text-gray-900 mb-2">Document Word</h3>
+                                                                        <div class="bg-gray-50 rounded-lg p-4 text-left">
+                                                                            <h5 class="font-medium text-gray-900 mb-3">Contenu extrait :</h5>
+                                                                            <div class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap max-h-64 overflow-y-auto">
+                                                                                {{ $document->ocr_text }}
+                                                                            </div>
+                                                                        </div>
+                                                                        <a href="{{ asset('storage/' . $document->file_path) }}" 
+                                                                           target="_blank"
+                                                                           class="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                                                            📄 Ouvrir Word dans un nouvel onglet
+                                                                        </a>
+                                                                    </div>
+                                                                </div>
+                                                            </iframe>
+                                                        @elseif(str_contains($mimeType, 'spreadsheetml') || str_contains($mimeType, 'ms-excel') || in_array($extension, ['xls', 'xlsx']))
+                                                            <!-- Excel : essayer Office Online Viewer -->
+                                                            <iframe 
+                                                                src="https://view.officeapps.live.com/op/embed.aspx?src={{ urlencode(asset('storage/' . $document->file_path)) }}"
+                                                                class="w-full h-full rounded-lg border-0"
+                                                                style="min-height: 400px; border: none;"
+                                                                title="Feuille Excel">
+                                                                <!-- Fallback si iframe ne fonctionne pas -->
+                                                                <div class="flex items-center justify-center h-full">
+                                                                    <div class="text-center p-6">
+                                                                        <svg class="w-16 h-16 text-green-600 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
+                                                                            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+                                                                        </svg>
+                                                                        <h3 class="text-lg font-medium text-gray-900 mb-2">Feuille Excel</h3>
+                                                                        <div class="bg-gray-50 rounded-lg p-4 text-left">
+                                                                            <h5 class="font-medium text-gray-900 mb-3">Contenu extrait :</h5>
+                                                                            <div class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap max-h-64 overflow-y-auto">
+                                                                                {{ $document->ocr_text }}
+                                                                            </div>
+                                                                        </div>
+                                                                        <a href="{{ asset('storage/' . $document->file_path) }}" 
+                                                                           target="_blank"
+                                                                           class="mt-4 inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                                                                            📊 Ouvrir Excel dans un nouvel onglet
+                                                                        </a>
+                                                                    </div>
+                                                                </div>
+                                                            </iframe>
+                                                        @else
+                                                            <!-- Document Office générique -->
+                                                            <div class="flex items-center justify-center h-full">
+                                                                <div class="text-center p-6">
+                                                                    <svg class="w-16 h-16 text-blue-600 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
+                                                                        <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4V5h12v10z"/>
+                                                                    </svg>
+                                                                    <h3 class="text-lg font-medium text-gray-900 mb-2">Document Office</h3>
+                                                                    <div class="bg-gray-50 rounded-lg p-4 text-left">
+                                                                        <h5 class="font-medium text-gray-900 mb-3">Contenu extrait :</h5>
+                                                                        <div class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap max-h-64 overflow-y-auto">
+                                                                            {{ $document->ocr_text }}
+                                                                        </div>
+                                                                    </div>
+                                                                    <a href="{{ asset('storage/' . $document->file_path) }}" 
+                                                                       target="_blank"
+                                                                       class="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                                                        📎 Ouvrir dans un nouvel onglet
+                                                                    </a>
+                                                                </div>
+                                                            </div>
+                                                        @endif
                                                     </div>
                                                 @else
                                                     <div class="text-center py-8">
