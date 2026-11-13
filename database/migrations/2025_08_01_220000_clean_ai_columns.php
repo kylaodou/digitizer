@@ -28,6 +28,10 @@ return new class extends Migration
             if (Schema::hasColumn('documents', 'ai_analyzed_at')) {
                 $table->dropColumn('ai_analyzed_at');
             }
+            // Ajoutée par la migration précédente : supprimée ici pour être recréée ci-dessous
+            if (Schema::hasColumn('documents', 'ai_document_type')) {
+                $table->dropColumn('ai_document_type');
+            }
         });
 
         Schema::table('documents', function (Blueprint $table) {
